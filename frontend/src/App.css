@@ -1,0 +1,1030 @@
+/* ==========================================
+BURNETTPEOPLE — PREMIUM LOGIN PAGE
+========================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+font-family: "DM Sans", sans-serif;
+color: #18343d;
+background: #ffffff;
+font-synthesis: none;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+
+--brand-dark: #10313a;
+--brand-mid: #155158;
+--brand-green: #287d68;
+--brand-light: #bcebd0;
+--text-main: #19343e;
+--text-muted: #84949b;
+--border: #e0eae7;
+}
+
+* {
+  box-sizing: border-box;
+  }
+
+html,
+body,
+#root {
+width: 100%;
+min-width: 320px;
+min-height: 100%;
+margin: 0;
+}
+
+body {
+min-height: 100vh;
+}
+
+button,
+input {
+font: inherit;
+}
+
+button {
+cursor: pointer;
+}
+
+a {
+color: inherit;
+}
+
+/* ==========================================
+MAIN PAGE
+========================================== */
+
+.login-page {
+display: grid;
+grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+width: 100%;
+min-height: 100vh;
+margin: 0;
+overflow: hidden;
+background: #ffffff;
+}
+
+/* ==========================================
+LEFT BRAND PANEL
+========================================== */
+
+.brand-panel {
+position: relative;
+isolation: isolate;
+display: flex;
+flex-direction: column;
+justify-content: space-between;
+min-width: 0;
+min-height: 100vh;
+overflow: hidden;
+padding: 36px clamp(30px, 4vw, 64px) 28px;
+color: #ffffff;
+
+background:
+radial-gradient(
+ellipse at 90% 12%,
+rgba(72, 153, 139, 0.28),
+transparent 37%
+),
+radial-gradient(
+ellipse at 5% 95%,
+rgba(37, 126, 105, 0.24),
+transparent 38%
+),
+linear-gradient(
+145deg,
+#102d38 0%,
+#123f48 54%,
+#15545a 100%
+);
+}
+
+.brand-top {
+position: relative;
+z-index: 1;
+display: flex;
+align-items: center;
+gap: 13px;
+}
+
+.brand-logo {
+display: flex;
+align-items: center;
+justify-content: center;
+flex-shrink: 0;
+width: 49px;
+height: 49px;
+padding-right: 4px;
+border: 1px solid rgba(255, 255, 255, 0.24);
+border-radius: 16px;
+background: #d8f3dd;
+color: #163f45;
+font-family: "Manrope", sans-serif;
+font-size: 32px;
+font-weight: 800;
+letter-spacing: -3px;
+box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.brand-logo span {
+color: #e69a60;
+}
+
+.brand-name {
+color: #ffffff;
+font-family: "Manrope", sans-serif;
+font-size: 20px;
+font-weight: 800;
+letter-spacing: -0.7px;
+}
+
+.brand-content {
+position: relative;
+z-index: 1;
+width: 100%;
+max-width: 570px;
+margin: 42px auto;
+}
+
+.eyebrow {
+display: inline-flex;
+align-items: center;
+gap: 10px;
+padding: 11px 15px;
+border: 1px solid rgba(207, 241, 225, 0.19);
+border-radius: 50px;
+background: rgba(255, 255, 255, 0.035);
+color: #d0eee3;
+font-size: 10px;
+font-weight: 700;
+letter-spacing: 1.6px;
+}
+
+.live-dot {
+width: 8px;
+height: 8px;
+flex-shrink: 0;
+border-radius: 50%;
+background: #a9e7b8;
+box-shadow: 0 0 12px rgba(169, 231, 184, 0.5);
+}
+
+.brand-content h1 {
+margin: 27px 0 20px;
+font-family: "Manrope", sans-serif;
+font-size: clamp(36px, 3.5vw, 56px);
+line-height: 1.14;
+font-weight: 800;
+letter-spacing: -2.2px;
+overflow-wrap: normal;
+text-shadow: 0 4px 22px rgba(0, 0, 0, 0.08);
+}
+
+.brand-content h1 span {
+color: #b8ebc8;
+background: linear-gradient(100deg, #c6f2d0, #91dbbd);
+-webkit-background-clip: text;
+background-clip: text;
+-webkit-text-fill-color: transparent;
+}
+
+.brand-description {
+max-width: 465px;
+margin: 0;
+color: #c9dcdf;
+font-size: 14px;
+line-height: 1.9;
+}
+
+.feature-list {
+display: grid;
+gap: 22px;
+margin-top: 34px;
+}
+
+.feature-item {
+display: flex;
+align-items: center;
+gap: 16px;
+}
+
+.feature-icon {
+display: grid;
+place-items: center;
+flex-shrink: 0;
+width: 45px;
+height: 45px;
+border: 1px solid rgba(201, 241, 225, 0.2);
+border-radius: 15px;
+background: rgba(255, 255, 255, 0.065);
+color: #c8f0d1;
+font-size: 23px;
+transition:
+transform 180ms ease,
+background 180ms ease,
+border-color 180ms ease;
+}
+
+.feature-item:hover .feature-icon {
+transform: translateY(-2px);
+border-color: rgba(201, 241, 225, 0.42);
+background: rgba(255, 255, 255, 0.13);
+}
+
+.feature-item strong {
+color: #ffffff;
+font-size: 13px;
+font-weight: 700;
+}
+
+.feature-item p {
+margin: 6px 0 0;
+color: #bdd5d8;
+font-size: 12px;
+line-height: 1.7;
+}
+
+.brand-bottom {
+position: relative;
+z-index: 1;
+display: flex;
+align-items: center;
+gap: 16px;
+padding-top: 22px;
+border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.avatar-stack {
+display: flex;
+flex-shrink: 0;
+padding-left: 3px;
+}
+
+.avatar-stack span {
+display: grid;
+place-items: center;
+width: 35px;
+height: 35px;
+margin-left: -4px;
+border: 2px solid #19434a;
+border-radius: 50%;
+background: #d8e8d7;
+color: #21434a;
+font-size: 10px;
+font-weight: 700;
+}
+
+.avatar-stack span:nth-child(2) {
+background: #f2d6b9;
+}
+
+.avatar-stack span:nth-child(3) {
+background: #c7d9ed;
+}
+
+.avatar-stack span:nth-child(4) {
+background: #e9c8d4;
+}
+
+.brand-bottom p {
+margin: 0;
+color: #c0d8da;
+font-size: 11px;
+line-height: 1.8;
+}
+
+.brand-bottom strong {
+color: #ffffff;
+font-size: 12px;
+}
+
+.decor {
+position: absolute;
+z-index: -1;
+border: 1px solid rgba(255, 255, 255, 0.065);
+border-radius: 50%;
+pointer-events: none;
+}
+
+.decor-one {
+width: 420px;
+height: 420px;
+right: -210px;
+top: 27%;
+}
+
+.decor-two {
+width: 290px;
+height: 290px;
+right: -145px;
+top: 35%;
+}
+
+/* ==========================================
+RIGHT LOGIN PANEL
+========================================== */
+
+.form-panel {
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+min-width: 0;
+min-height: 100vh;
+padding: 36px clamp(28px, 4.5vw, 76px) 24px;
+background:
+radial-gradient(
+ellipse at 100% 0%,
+rgba(225, 244, 233, 0.8),
+transparent 38%
+),
+linear-gradient(180deg, #ffffff 0%, #fcfefd 100%);
+}
+
+.login-card {
+width: 100%;
+max-width: 450px;
+margin: auto 0;
+}
+
+/* Center the welcome heading group */
+
+.welcome-tag {
+margin: 0 0 15px;
+color: #34836d;
+font-size: 11px;
+font-weight: 800;
+letter-spacing: 2.6px;
+text-align: center;
+}
+
+.login-card h2 {
+margin: 0;
+color: var(--text-main);
+font-family: "Manrope", sans-serif;
+font-size: clamp(34px, 3.2vw, 46px);
+line-height: 1.18;
+font-weight: 800;
+letter-spacing: -1.8px;
+text-align: center;
+text-wrap: balance;
+}
+
+.form-subtitle {
+margin: 12px 0 35px;
+color: var(--text-muted);
+font-size: 14px;
+line-height: 1.7;
+text-align: center;
+}
+
+/* ==========================================
+FORM FIELDS
+========================================== */
+
+.login-card form {
+width: 100%;
+}
+
+.login-card form > label:not(.remember-row) {
+display: block;
+width: 100%;
+margin: 0 0 10px;
+color: #344d55;
+font-size: 12px;
+font-weight: 700;
+text-align: left;
+}
+
+.input-wrap {
+display: flex;
+align-items: center;
+gap: 12px;
+width: 100%;
+min-width: 0;
+min-height: 54px;
+padding: 0 15px;
+margin-bottom: 23px;
+border: 1px solid var(--border);
+border-radius: 13px;
+background: rgba(255, 255, 255, 0.94);
+box-shadow: 0 3px 10px rgba(24, 65, 57, 0.025);
+transition:
+border-color 180ms ease,
+box-shadow 180ms ease,
+background 180ms ease;
+}
+
+.input-wrap:hover {
+border-color: #c6dcd3;
+}
+
+.input-wrap:focus-within {
+border-color: #438c78;
+background: #ffffff;
+box-shadow:
+0 0 0 4px rgba(67, 140, 120, 0.1),
+0 5px 15px rgba(24, 65, 57, 0.045);
+}
+
+.input-icon {
+display: grid;
+place-items: center;
+flex-shrink: 0;
+width: 20px;
+color: #829e99;
+font-size: 17px;
+}
+
+.input-wrap input {
+width: 100%;
+min-width: 0;
+height: 52px;
+padding: 0;
+border: 0;
+outline: none;
+background: transparent;
+color: #253c43;
+font-size: 13px;
+}
+
+.input-wrap input::placeholder {
+color: #a4b3b9;
+}
+
+.input-wrap input:focus-visible {
+outline: none;
+}
+
+/* Password label */
+
+.password-label {
+display: flex;
+align-items: center;
+justify-content: space-between;
+width: 100%;
+}
+
+.password-label label {
+display: block;
+margin: 0 0 10px;
+color: #344d55;
+font-size: 12px;
+font-weight: 700;
+text-align: left;
+}
+
+.password-wrap {
+margin-bottom: 0;
+}
+
+.password-toggle {
+flex-shrink: 0;
+padding: 7px 0 7px 6px;
+border: 0;
+background: transparent;
+color: #6f8981;
+font-size: 11px;
+font-weight: 700;
+transition: color 160ms ease;
+}
+
+.password-toggle:hover {
+color: #246650;
+}
+
+/* Forgot password */
+
+.forgot-row {
+display: flex;
+justify-content: flex-end;
+margin: 13px 0 25px;
+}
+
+.text-button {
+padding: 0;
+border: 0;
+background: transparent;
+color: #327966;
+font-size: 11px;
+font-weight: 700;
+transition: color 160ms ease;
+}
+
+.text-button:hover {
+color: #194f40;
+text-decoration: underline;
+}
+
+/* Remember me */
+
+.remember-row {
+display: flex;
+align-items: center;
+gap: 10px;
+margin: 0 0 24px;
+color: #667a80;
+font-size: 12px;
+cursor: pointer;
+}
+
+.remember-row input {
+width: 16px;
+height: 16px;
+margin: 0;
+accent-color: #327966;
+cursor: pointer;
+}
+
+/* ==========================================
+SIGN IN BUTTON
+========================================== */
+
+.sign-in-button {
+position: relative;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 13px;
+width: 100%;
+min-height: 56px;
+padding: 14px 18px;
+overflow: hidden;
+border: 0;
+border-radius: 13px;
+background: linear-gradient(105deg, #205f52, #2c826b);
+color: #ffffff;
+font-size: 13px;
+font-weight: 700;
+box-shadow: 0 9px 22px rgba(32, 94, 81, 0.15);
+transition:
+transform 180ms ease,
+box-shadow 180ms ease,
+background 180ms ease;
+}
+
+.sign-in-button:hover {
+transform: translateY(-2px);
+background: linear-gradient(105deg, #194f44, #26745f);
+box-shadow: 0 13px 27px rgba(32, 94, 81, 0.23);
+}
+
+.sign-in-button:active {
+transform: translateY(0);
+}
+
+.sign-in-button span {
+font-size: 19px;
+font-weight: 400;
+transition: transform 180ms ease;
+}
+
+.sign-in-button:hover span {
+transform: translateX(4px);
+}
+
+/* Keyboard accessibility */
+
+.sign-in-button:focus-visible,
+.password-toggle:focus-visible,
+.text-button:focus-visible {
+outline: 2px solid #438c78;
+outline-offset: 4px;
+}
+
+/* ==========================================
+SECURITY NOTE AND FOOTER
+========================================== */
+
+.security-note {
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 9px;
+margin-top: 23px;
+color: #8c9b9d;
+font-size: 11px;
+text-align: center;
+}
+
+.security-note span {
+color: #42856e;
+font-size: 16px;
+}
+
+.form-footer {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 14px;
+width: 100%;
+max-width: 450px;
+padding-top: 18px;
+border-top: 1px solid #e8efeb;
+color: #96a4a7;
+font-size: 10px;
+}
+
+.form-footer div {
+display: flex;
+flex-wrap: wrap;
+gap: 18px;
+}
+
+.form-footer a {
+color: #758581;
+text-decoration: none;
+transition: color 160ms ease;
+}
+
+.form-footer a:hover {
+color: #327966;
+}
+
+/* Mobile-only branding */
+
+.mobile-brand {
+display: none;
+}
+
+/* ==========================================
+MEDIUM SCREENS
+========================================== */
+
+@media (max-width: 1050px) {
+.brand-panel {
+padding-right: 30px;
+padding-left: 30px;
+}
+
+.form-panel {
+padding-right: 30px;
+padding-left: 30px;
+}
+
+.brand-content h1 {
+font-size: clamp(34px, 4vw, 46px);
+letter-spacing: -1.6px;
+}
+
+.login-card h2 {
+font-size: clamp(32px, 3.5vw, 40px);
+}
+}
+
+/* ==========================================
+SHORT DESKTOP WINDOWS
+========================================== */
+
+@media (min-width: 761px) and (max-height: 760px) {
+.brand-panel {
+padding-top: 24px;
+padding-bottom: 20px;
+}
+
+.brand-content {
+margin-top: 24px;
+margin-bottom: 24px;
+}
+
+.brand-content h1 {
+margin-top: 20px;
+margin-bottom: 14px;
+font-size: clamp(32px, 3.5vw, 45px);
+}
+
+.feature-list {
+gap: 15px;
+margin-top: 23px;
+}
+
+.feature-icon {
+width: 39px;
+height: 39px;
+}
+
+.brand-bottom {
+padding-top: 15px;
+}
+
+.form-panel {
+padding-top: 22px;
+padding-bottom: 16px;
+}
+
+.welcome-tag {
+margin-bottom: 11px;
+}
+
+.login-card h2 {
+font-size: clamp(30px, 3vw, 40px);
+}
+
+.form-subtitle {
+margin-top: 8px;
+margin-bottom: 25px;
+}
+
+.input-wrap {
+min-height: 48px;
+margin-bottom: 18px;
+}
+
+.input-wrap input {
+height: 46px;
+}
+
+.forgot-row {
+margin-top: 10px;
+margin-bottom: 19px;
+}
+
+.remember-row {
+margin-bottom: 18px;
+}
+
+.sign-in-button {
+min-height: 49px;
+}
+
+.security-note {
+margin-top: 16px;
+}
+
+.form-footer {
+padding-top: 13px;
+}
+}
+
+/* ==========================================
+TABLETS AND MOBILE
+========================================== */
+
+@media (max-width: 760px) {
+.login-page {
+grid-template-columns: minmax(0, 1fr);
+min-height: 100vh;
+overflow: visible;
+}
+
+.brand-panel {
+display: none;
+}
+
+.form-panel {
+justify-content: flex-start;
+min-height: 100vh;
+padding: 27px 24px 20px;
+}
+
+.mobile-brand {
+display: flex;
+align-items: center;
+gap: 11px;
+width: 100%;
+max-width: 450px;
+margin: 0 auto 38px;
+}
+
+.mobile-brand .brand-logo {
+width: 41px;
+height: 41px;
+border-radius: 13px;
+font-size: 27px;
+}
+
+.mobile-brand .brand-name {
+font-size: 18px;
+}
+
+.login-card {
+max-width: 450px;
+margin: 0 auto 35px;
+}
+
+.login-card h2 {
+font-size: clamp(32px, 6vw, 41px);
+}
+
+.form-subtitle {
+margin-bottom: 29px;
+}
+
+.form-footer {
+max-width: 450px;
+margin: auto auto 0;
+}
+}
+
+/* ==========================================
+SMALL MOBILE
+========================================== */
+
+@media (max-width: 380px) {
+.form-panel {
+padding-right: 18px;
+padding-left: 18px;
+}
+
+.mobile-brand {
+margin-bottom: 31px;
+}
+
+.login-card h2 {
+font-size: 30px;
+letter-spacing: -1px;
+}
+
+.form-footer {
+align-items: flex-start;
+font-size: 9px;
+}
+
+.form-footer div {
+gap: 10px;
+}
+
+.sign-in-button {
+font-size: 12px;
+}
+}
+
+/* Respect reduced-motion preferences */
+
+@media (prefers-reduced-motion: reduce) {
+*,
+*::before,
+*::after {
+scroll-behavior: auto !important;
+animation-duration: 0.01ms !important;
+animation-iteration-count: 1 !important;
+transition-duration: 0.01ms !important;
+}
+}
+
+/* ===== Premium Typography Upgrade ===== */
+
+/* Modern, clean font for the complete login page */
+.login-page {
+font-family: "DM Sans", sans-serif;
+-webkit-font-smoothing: antialiased;
+text-rendering: optimizeLegibility;
+}
+
+/* Brand name */
+.brand-name {
+font-family: "Manrope", sans-serif;
+font-size: 20px;
+font-weight: 800;
+letter-spacing: -0.7px;
+}
+
+/* Left-side headline */
+.brand-content h1 {
+font-family: "Manrope", sans-serif;
+font-size: clamp(38px, 3.7vw, 56px);
+font-weight: 800;
+line-height: 1.13;
+letter-spacing: -2.2px;
+}
+
+/* Supporting text on the brand panel */
+.brand-description {
+font-size: 14px;
+font-weight: 400;
+line-height: 1.9;
+letter-spacing: 0.05px;
+}
+
+/* Feature titles */
+.feature-item strong {
+font-family: "DM Sans", sans-serif;
+font-size: 13px;
+font-weight: 750;
+letter-spacing: -0.15px;
+}
+
+.feature-item p {
+font-size: 12.5px;
+line-height: 1.7;
+}
+
+/* Welcome back — centered and refined */
+.welcome-tag {
+width: 100%;
+margin-bottom: 16px;
+text-align: center;
+font-family: "DM Sans", sans-serif;
+font-size: 12px;
+font-weight: 800;
+letter-spacing: 2.8px;
+}
+
+/* Main login heading */
+.login-card h2 {
+font-family: "Manrope", sans-serif;
+font-size: clamp(34px, 3vw, 44px);
+font-weight: 800;
+line-height: 1.2;
+letter-spacing: -1.8px;
+text-wrap: balance;
+}
+
+/* Subtitle */
+.login-card .form-subtitle {
+font-size: 14px;
+font-weight: 400;
+line-height: 1.8;
+}
+
+/* Email and password labels */
+.login-card form > label:not(.remember-row),
+.password-label label {
+font-family: "DM Sans", sans-serif;
+font-size: 13px;
+font-weight: 700;
+letter-spacing: -0.1px;
+}
+
+/* Input text and placeholders */
+.input-wrap input {
+font-family: "DM Sans", sans-serif;
+font-size: 13px;
+font-weight: 400;
+letter-spacing: 0.1px;
+}
+
+.input-wrap input::placeholder {
+font-weight: 400;
+}
+
+/* Forgot password and show/hide */
+.text-button,
+.password-toggle {
+font-family: "DM Sans", sans-serif;
+font-size: 12px;
+font-weight: 700;
+}
+
+/* Remember me */
+.remember-row {
+font-size: 12px;
+font-weight: 500;
+}
+
+/* Sign-in button */
+.sign-in-button {
+font-family: "Manrope", sans-serif;
+font-size: 13px;
+font-weight: 800;
+letter-spacing: -0.1px;
+}
+
+/* Security note and footer */
+.security-note {
+font-size: 11px;
+font-weight: 400;
+letter-spacing: 0.05px;
+}
+
+.form-footer {
+font-family: "DM Sans", sans-serif;
+font-size: 11px;
+font-weight: 400;
+}
+
+/* Small-screen heading adjustments */
+@media (max-width: 760px) {
+.brand-content h1 {
+letter-spacing: -1.5px;
+}
+
+.login-card h2 {
+font-size: clamp(32px, 7vw, 40px);
+letter-spacing: -1.3px;
+}
+}
+
+
+/* BurnettPeople custom logo */
+.brand-image {
+  display: block;
+  width: clamp(190px, 22vw, 290px);
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.mobile-brand .brand-image {
+  width: 220px;
+  max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  .brand-top .brand-image {
+    width: 220px;
+  }
+}
