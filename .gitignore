@@ -1,11 +1,17 @@
+
+# Environment secrets
 .env
 **/.env
 
-.venv/
-backend/.venv/
-
+# Python generated files
 __pycache__/
+**/__pycache__/
 *.py[cod]
-.pytest_cache/
 
-staticfiles/
+# Virtual environments
+.venv/
+**/.venv/
+
+# Allow safe example configuration files
+!.env.example
+!**/.env.example

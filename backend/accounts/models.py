@@ -1,4 +1,3 @@
-
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -6,6 +5,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+
 
 class UserManager(BaseUserManager):
     """Create users using email instead of username."""
@@ -148,3 +148,105 @@ class AccountInvitation(models.Model):
 
     def __str__(self):
         return f"Invitation for {self.email_snapshot}"
+
+
+class AuditEvent(models.Model):
+    class Action(models.TextChoices):
+        EMPLOYEE_CREATED = "EMPLOYEE_CREATED", "Employee created"
+        INVITATION_CREATED = "INVITATION_CREATED", "Invitation created"
+        INVITATION_RESENT = "INVITATION_RESENT", "Invitation resent"
+        INVITATION_EMAIL_SENT = "INVITATION_EMAIL_SENT", "Invitation email sent"
+        INVITATION_EMAIL_FAILED = "INVITATION_EMAIL_FAILED", "Invitation email failed"
+        ACCOUNT_ACTIVATED = "ACCOUNT_ACTIVATED", "Account activated"
+        EMPLOYEE_DEACTIVATED = "EMPLOYEE_DEACTIVATED", "Employee deactivated"
+        PASSWORD_RESET_REQUESTED = (
+            "PASSWORD_RESET_REQUESTED",
+            "Password reset requested",
+        )
+        PASSWORD_RESET_COMPLETED = (
+            "PASSWORD_RESET_COMPLETED",
+            "Password reset completed",
+        )
+
+    # Who performed the action. Null means a system-generated event
+    # or an actor who has since been deleted.
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_events_created",
+    )
+
+    # The user affected by this event, when applicable.
+    subject_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_events_received",
+    )
+
+    # Snapshots remain available even if the related user is deleted.
+    subject_email = models.EmailField(blank=True)
+
+    action = models.CharField(
+        max_length=32,
+        choices=Action.choices,
+    )
+
+    # A loose reference avoids coupling the audit table to one
+    # particular HR record type.
+    object_type = models.CharField(max_length=50, blank=True)
+    object_id = models.CharField(max_length=64, blank=True)
+
+    # Store non-sensitive contextual details only.
+    metadata = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["action", "created_at"],
+                name="audit_action_created_idx",
+            ),
+            models.Index(
+                fields=["subject_email", "created_at"],
+                name="audit_subject_created_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.action} at {self.created_at}"
+
+
+class PasswordResetCode(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="password_reset_codes",
+    )
+    email_snapshot = models.EmailField()
+    code_hash = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["user", "created_at"],
+                name="pwd_reset_user_created_idx",
+            ),
+            models.Index(
+                fields=["expires_at"],
+                name="pwd_reset_expiry_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Password reset for {self.email_snapshot}"
