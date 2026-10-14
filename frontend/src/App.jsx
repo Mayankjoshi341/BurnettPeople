@@ -1,22 +1,32 @@
 import { useState } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
+
+import AdminDashboard from "./AdminDashboard";
+import HRDashboard from "./HRDashboard";
 import EmployeeDashboard from "./EmployeeDashboard";
+import ManagerDashboard from "./ManagerDashboard";
 import "./App.css";
 import burnettLogo from "./assets/burnettpeople-logo.png";
 
-function App() {
+function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const navigate = useNavigate();
 
   const handleLogin = (e) => {
     e.preventDefault();
-    setIsLoggedIn(true);
-  };
 
-  if (isLoggedIn) {
-    return <EmployeeDashboard onLogout={() => setIsLoggedIn(false)} />;
-  }
+    // Temporary demo navigation; real authentication comes later.
+    navigate("/employee");
+  };
 
   return (
     <main className="login-page">
@@ -94,9 +104,11 @@ function App() {
         </div>
 
         <div className="login-card">
-          <div className="welcome-tag">WELCOME BACK</div> 
-          <h2>Sign in to your space</h2> 
-          <p className="form-subtitle"> Your workday, all in one place. </p>
+          <div className="welcome-tag">WELCOME BACK</div>
+          <h2>Sign in to your space</h2>
+          <p className="form-subtitle">
+            Your workday, all in one place.
+          </p>
 
           <form onSubmit={handleLogin}>
             <label htmlFor="email">Work Email</label>
@@ -177,6 +189,42 @@ function App() {
         </footer>
       </section>
     </main>
+  );
+}
+
+function EmployeePage() {
+  const navigate = useNavigate();
+
+  return (
+    <EmployeeDashboard
+      onLogout={() => navigate("/", { replace: true })}
+    />
+  );
+}
+
+
+
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<LoginPage />} />
+      <Route path="/employee" element={<EmployeePage />} />
+      <Route path="/hr" element={<HRDashboard />} />
+      <Route path="/manager" element={<ManagerDashboard />} />
+      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   );
 }
 
