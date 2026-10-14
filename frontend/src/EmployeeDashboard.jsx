@@ -1,4 +1,4 @@
-
+import { NavLink } from "react-router-dom";
 import "./EmployeeDashboard.css";
 
 function EmployeeDashboard({ onLogout }) {
@@ -7,14 +7,16 @@ function EmployeeDashboard({ onLogout }) {
       <aside className="employee-sidebar">
         <h2>BurnettPeople</h2>
 
+        
         <nav>
-          <a href="#dashboard" className="active">
+          <NavLink to="/employee" end>
             Dashboard
-          </a>
-          <a href="#attendance">My Attendance</a>
-          <a href="#leaves">Leave Management</a>
-          <a href="#profile">My Profile</a>
+          </NavLink>
+          <NavLink to="/employee#attendance">My Attendance</NavLink>
+          <NavLink to="/employee#leaves">Leave Management</NavLink>
+          <NavLink to="/employee#profile">My Profile</NavLink>
         </nav>
+
       </aside>
 
       <main className="employee-main">
