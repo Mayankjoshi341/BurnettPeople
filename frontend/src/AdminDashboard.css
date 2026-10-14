@@ -1,0 +1,41 @@
+
+/* Admin Dashboard — consistent with BurnettPeople's existing theme */
+
+.employee-dashboard .employee-sidebar nav a {
+  text-decoration: none;
+}
+
+.employee-dashboard .employee-sidebar nav a:hover {
+  opacity: 0.85;
+}
+
+.employee-dashboard .employee-welcome {
+  margin-bottom: 24px;
+}
+
+.employee-dashboard .employee-summary {
+  margin-bottom: 24px;
+}
+
+.employee-dashboard .employee-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.employee-dashboard .employee-card:hover {
+  transform: translateY(-2px);
+}
+
+.employee-dashboard .employee-content {
+  align-items: stretch;
+}
+
+@media (max-width: 768px) {
+  .employee-dashboard .employee-header {
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .employee-dashboard .employee-profile {
+    max-width: 100%;
+  }
+}
