@@ -1,3 +1,4 @@
+import { NavLink } from "react-router-dom";
 import "./ManagerDashboard.css";
 
 function ManagerDashboard() {
@@ -5,14 +6,17 @@ function ManagerDashboard() {
     <div className="employee-dashboard">
       <aside className="employee-sidebar">
         <h2>BurnettPeople</h2>
-
+        
         <nav>
-          <a href="#dashboard" className="active">Dashboard</a>
-          <a href="#team">My Team</a>
-          <a href="#attendance">Team Attendance</a>
-          <a href="#leaves">Leave Reviews</a>
-          <a href="#profile">My Profile</a>
+          <NavLink to="/manager" end>
+            Dashboard
+          </NavLink>
+          <NavLink to="/manager#team">My Team</NavLink>
+          <NavLink to="/manager#attendance">Team Attendance</NavLink>
+          <NavLink to="/manager#leaves">Leave Reviews</NavLink>
+          <NavLink to="/manager#profile">My Profile</NavLink>
         </nav>
+
       </aside>
 
       <main className="employee-main">

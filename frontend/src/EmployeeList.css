@@ -1,0 +1,375 @@
+.employee-list-page {
+  padding: 32px;
+  color: #172b4d;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.employee-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.employee-list-eyebrow {
+  color: #168b78;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  margin: 0 0 8px;
+}
+
+.employee-list-header h1 {
+  font-size: 30px;
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.employee-list-header p:last-child {
+  color: #718096;
+  font-size: 14px;
+  margin: 0;
+}
+
+.employee-list-add-button {
+  background: #147d70;
+  color: #ffffff;
+  border: none;
+  border-radius: 9px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.employee-list-add-button:hover {
+  background: #10685e;
+  transform: translateY(-1px);
+}
+
+.employee-list-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.employee-list-stat-card {
+  background: #ffffff;
+  border: 1px solid #e7edf2;
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 4px 14px rgba(24, 45, 75, 0.04);
+}
+
+.employee-list-stat-card span {
+  display: block;
+  color: #718096;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.employee-list-stat-card strong {
+  display: block;
+  color: #172b4d;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.employee-list-panel {
+  background: #ffffff;
+  border: 1px solid #e7edf2;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(24, 45, 75, 0.04);
+}
+
+.employee-list-panel-heading {
+  padding: 22px 24px 16px;
+}
+
+.employee-list-panel-heading h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.employee-list-panel-heading p {
+  margin: 0;
+  color: #718096;
+  font-size: 13px;
+}
+
+.employee-list-filters {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 200px 170px;
+  gap: 12px;
+  padding: 0 24px 22px;
+}
+
+.employee-list-filters input,
+.employee-list-filters select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #ffffff;
+  color: #253858;
+  border: 1px solid #dce4ec;
+  border-radius: 8px;
+  padding: 12px 13px;
+  font-size: 13px;
+  outline: none;
+}
+
+.employee-list-filters input:focus,
+.employee-list-filters select:focus {
+  border-color: #168b78;
+  box-shadow: 0 0 0 3px rgba(22, 139, 120, 0.1);
+}
+
+.employee-list-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.employee-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.employee-list-table thead {
+  background: #f7f9fb;
+}
+
+.employee-list-table th {
+  color: #718096;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 15px 20px;
+  white-space: nowrap;
+}
+
+.employee-list-table td {
+  padding: 17px 20px;
+  border-top: 1px solid #edf1f5;
+  font-size: 13px;
+  color: #40516b;
+  white-space: nowrap;
+}
+
+.employee-list-table tbody tr:hover {
+  background: #fbfdfd;
+}
+
+.employee-list-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.employee-list-avatar {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e2f5ef;
+  color: #147d70;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.employee-list-person div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.employee-list-person strong {
+  color: #253858;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.employee-list-person div span {
+  color: #8290a5;
+  font-size: 12px;
+}
+
+.employee-list-status {
+  display: inline-block;
+  border-radius: 20px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.employee-list-status.is-active {
+  background: #e4f7ed;
+  color: #16804a;
+}
+
+.employee-list-status.is-inactive {
+  background: #f0f2f5;
+  color: #697586;
+}
+
+.employee-list-empty {
+  text-align: center;
+  padding: 35px 20px !important;
+  color: #8290a5 !important;
+}
+
+@media (max-width: 900px) {
+  .employee-list-page {
+    padding: 24px;
+  }
+
+  .employee-list-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .employee-list-filters input {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .employee-list-page {
+    padding: 18px 14px;
+  }
+
+  .employee-list-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .employee-list-header h1 {
+    font-size: 26px;
+  }
+
+  .employee-list-stats {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .employee-list-stat-card {
+    padding: 18px;
+  }
+
+  .employee-list-filters {
+    grid-template-columns: 1fr;
+    padding: 0 16px 18px;
+  }
+
+  .employee-list-filters input {
+    grid-column: auto;
+  }
+
+  .employee-list-panel-heading {
+    padding: 20px 16px 16px;
+  }
+
+  .employee-list-table th,
+  .employee-list-table td {
+    padding: 14px 16px;
+  }
+}
+
+
+/* Invitation status badges */
+.employee-list-status.is-not-sent {
+  background: #f1f3f5;
+  color: #667580;
+}
+
+.employee-list-status.is-pending {
+  background: #fff4d6;
+  color: #8a6500;
+}
+
+.employee-list-status.is-sent {
+  background: #e7f0ff;
+  color: #285ca8;
+}
+
+.employee-list-status.is-accepted {
+  background: #e4f6eb;
+  color: #237348;
+}
+
+.employee-list-status.is-failed {
+  background: #fde8e8;
+  color: #b4232c;
+}
+
+.employee-list-invitation {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.employee-list-invitation.is-pending {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.employee-list-invitation.is-not-sent {
+  color: #475569;
+  background: #e2e8f0;
+}
+
+.employee-list-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.employee-list-view-button,
+.employee-list-resend-button {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.employee-list-resend-button {
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.employee-list-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.employee-list-notice button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}

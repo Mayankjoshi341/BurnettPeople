@@ -1,4 +1,4 @@
-
+import { NavLink } from "react-router-dom";
 import "./AdminDashboard.css";
 
 function AdminDashboard() {
@@ -7,13 +7,17 @@ function AdminDashboard() {
       <aside className="employee-sidebar">
         <h2>BurnettPeople</h2>
 
+        
         <nav>
-          <a href="#dashboard" className="active">Dashboard</a>
-          <a href="#users">User Management</a>
-          <a href="#employees">Employees</a>
-          <a href="#roles">Roles & Permissions</a>
-          <a href="#settings">Company Settings</a>
+          <NavLink to="/admin" end>
+            Dashboard
+          </NavLink>
+          <NavLink to="/admin#users">User Management</NavLink>
+          <NavLink to="/employees">Employees</NavLink>
+          <NavLink to="/admin#roles">Roles &amp; Permissions</NavLink>
+          <NavLink to="/admin#settings">Company Settings</NavLink>
         </nav>
+
       </aside>
 
       <main className="employee-main">

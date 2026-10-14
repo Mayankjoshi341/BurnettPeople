@@ -1028,3 +1028,25 @@ letter-spacing: -1.3px;
     width: 220px;
   }
 }
+
+.typing-headline {
+  color: #A8E6CC;
+}
+
+.typing-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  animation: blink 0.8s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-cursor {
+    animation: none;
+  }
+}

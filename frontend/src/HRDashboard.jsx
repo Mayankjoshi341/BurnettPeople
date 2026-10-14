@@ -1,3 +1,4 @@
+import { NavLink } from "react-router-dom";
 import "./HRDashboard.css";
 
 function HRDashboard() {
@@ -6,13 +7,17 @@ function HRDashboard() {
       <aside className="employee-sidebar">
         <h2>BurnettPeople</h2>
 
+        
         <nav>
-          <a href="#dashboard" className="active">Dashboard</a>
-          <a href="#employees">Employees</a>
-          <a href="#attendance">Attendance</a>
-          <a href="#leaves">Leave Requests</a>
-          <a href="#profile">My Profile</a>
+          <NavLink to="/hr" end>
+            Dashboard
+          </NavLink>
+          <NavLink to="/employees">Employees</NavLink>
+          <NavLink to="/hr#attendance">Attendance</NavLink>
+          <NavLink to="/hr#leaves">Leave Requests</NavLink>
+          <NavLink to="/hr#profile">My Profile</NavLink>
         </nav>
+
       </aside>
 
       <main className="employee-main">
