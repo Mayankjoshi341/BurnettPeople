@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import environ
+from datetime import timedelta 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist", 
 
     "accounts",     #Custom User and AccountInvitation
     "organization", #Department and Designation
@@ -150,6 +152,23 @@ REST_FRAMEWORK = {
     ],
 }
 
+SIMPLE_JWT = {
+    # Access tokens are valid for six hours.
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=6),
+
+    # Refresh tokens are valid for seven days.
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
+    # Issue a new refresh token when refreshing a session.
+    "ROTATE_REFRESH_TOKENS": True,
+
+    # Invalidate the old refresh token after rotation.
+    "BLACKLIST_AFTER_ROTATION": True,
+
+    # Use the standard Authorization: Bearer <token> header.
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
 # Email: console backend until a real provider is configured.
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
@@ -177,3 +196,9 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+
+FRONTEND_BASE_URL = env(
+    "FRONTEND_BASE_URL",
+    default="http://localhost:5173",
+).rstrip("/")
