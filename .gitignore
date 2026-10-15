@@ -15,3 +15,5 @@ __pycache__/
 # Allow safe example configuration files
 !.env.example
 !**/.env.example
+
+.day3_patch_backup/
