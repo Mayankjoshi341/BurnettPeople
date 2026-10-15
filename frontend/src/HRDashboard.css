@@ -1,40 +1,327 @@
-/* HR Dashboard — reuses the existing Employee Dashboard theme */
 
-.employee-dashboard .employee-sidebar nav a {
+/* HR Dashboard — exception management styles */
+
+.hr-dashboard .employee-sidebar nav a {
   text-decoration: none;
 }
 
-.employee-dashboard .employee-sidebar nav a:hover {
+.hr-dashboard .employee-sidebar nav a:hover {
   opacity: 0.85;
 }
 
-.employee-dashboard .employee-welcome {
+.hr-dashboard .employee-welcome {
   margin-bottom: 24px;
 }
 
-.employee-dashboard .employee-summary {
+.hr-dashboard .employee-summary {
   margin-bottom: 24px;
 }
 
-.employee-dashboard .employee-card {
+.hr-dashboard .employee-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.employee-dashboard .employee-card:hover {
-  transform: translateY(-2px);
-}
-
-.employee-dashboard .employee-content {
+.hr-dashboard .employee-content {
   align-items: stretch;
 }
 
-@media (max-width: 768px) {
-  .employee-dashboard .employee-header {
+.hr-dashboard .hr-exceptions-section {
+  margin-bottom: 24px;
+  min-width: 0;
+}
+
+.hr-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.hr-section-heading h2 {
+  margin: 4px 0 8px;
+  font-size: 1.45rem;
+}
+
+.hr-section-heading p {
+  margin-top: 0;
+}
+
+.hr-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  opacity: 0.7;
+}
+
+.hr-connection-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 20px;
+  background: #fff1d6;
+  color: #80530a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.hr-api-notice {
+  padding: 15px 17px;
+  margin-bottom: 22px;
+  border: 1px solid #e7c98e;
+  border-left: 4px solid #c38b27;
+  border-radius: 9px;
+  background: #fff9ec;
+  color: #59451e;
+}
+
+.hr-api-notice strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.hr-api-notice p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.hr-exception-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.hr-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.hr-filter-field label {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.hr-filter-field select {
+  width: 100%;
+  min-height: 43px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-color, #d8dce4);
+  border-radius: 8px;
+  background: var(--card-bg, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.hr-filter-field select:focus {
+  outline: 2px solid #647fc5;
+  outline-offset: 2px;
+}
+
+.hr-exceptions-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(230px, 0.9fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.hr-exception-list,
+.hr-exception-details {
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid var(--border-color, #e0e4eb);
+  border-radius: 12px;
+  background: var(--card-bg, #fff);
+}
+
+.hr-list-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.hr-list-heading h3,
+.hr-exception-details h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.hr-list-heading span {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.hr-empty-state,
+.hr-detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  padding: 22px 15px;
+  text-align: center;
+}
+
+.hr-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--muted-bg, #f0f2f6);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.hr-empty-state h4,
+.hr-detail-empty h4 {
+  margin: 0 0 8px;
+  font-size: 0.98rem;
+}
+
+.hr-empty-state p,
+.hr-detail-empty p {
+  max-width: 340px;
+  margin: 0;
+  font-size: 0.87rem;
+  line-height: 1.6;
+  opacity: 0.75;
+}
+
+.hr-exception-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.hr-exception-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.87rem;
+}
+
+.hr-exception-table th,
+.hr-exception-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border-color, #e0e4eb);
+  white-space: nowrap;
+}
+
+.hr-exception-table th {
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.hr-view-button,
+.hr-secondary-button {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #d8dce4);
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.hr-view-button:hover,
+.hr-secondary-button:hover {
+  background: var(--muted-bg, #f0f2f6);
+}
+
+.hr-detail-content {
+  margin-top: 18px;
+}
+
+.hr-detail-content p {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.hr-detail-note {
+  margin: 12px 0 0;
+  padding-top: 13px;
+  border-top: 1px solid var(--border-color, #e0e4eb);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  opacity: 0.75;
+}
+
+.hr-directory-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hr-directory-link:hover {
+  text-decoration: underline;
+}
+
+/* Dark theme */
+html[data-theme="dark"] .hr-api-notice {
+  background: #302817;
+  border-color: #745c2d;
+  border-left-color: #d5a64b;
+  color: #f5e6c3;
+}
+
+html[data-theme="dark"] .hr-connection-status {
+  background: #40341d;
+  color: #f5d99b;
+}
+
+html[data-theme="dark"] .hr-filter-field select {
+  background: var(--card-bg, #242832);
+  border-color: var(--border-color, #444955);
+  color: inherit;
+}
+
+html[data-theme="dark"] .hr-state-icon {
+  background: var(--muted-bg, #30343d);
+}
+
+@media (max-width: 900px) {
+  .hr-exceptions-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hr-exception-details {
+    min-height: 180px;
+  }
+}
+
+@media (max-width: 600px) {
+  .hr-dashboard .employee-header {
     gap: 16px;
     flex-wrap: wrap;
   }
 
-  .employee-dashboard .employee-profile {
+  .hr-dashboard .employee-profile {
     max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .hr-exception-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hr-section-heading h2 {
+    font-size: 1.25rem;
+  }
+
+  .hr-exception-list,
+  .hr-exception-details {
+    padding: 12px;
   }
 }
