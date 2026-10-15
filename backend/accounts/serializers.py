@@ -8,7 +8,7 @@ from accounts.services.activation import (
     InvalidInvitationError,
     activate_account,
 )
-
+from employees.models import Employee
 
 class CurrentUserSerializer(serializers.ModelSerializer):
     """Expose safe profile information for the authenticated user."""
@@ -113,3 +113,25 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
         attrs.pop("password_confirm")
         return attrs
+
+
+class HRAccountCreateSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    first_name = serializers.CharField(max_length=150, trim_whitespace=True)
+    last_name = serializers.CharField(max_length=150, trim_whitespace=True)
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError(
+                "This email is already linked to an account."
+            )
+
+        if Employee.objects.filter(official_email__iexact=value).exists():
+            raise serializers.ValidationError(
+                "This email is already used by an employee record."
+            )
+
+        return value
+

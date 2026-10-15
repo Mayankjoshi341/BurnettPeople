@@ -159,6 +159,7 @@ class AuditEvent(models.Model):
         INVITATION_EMAIL_FAILED = "INVITATION_EMAIL_FAILED", "Invitation email failed"
         ACCOUNT_ACTIVATED = "ACCOUNT_ACTIVATED", "Account activated"
         EMPLOYEE_DEACTIVATED = "EMPLOYEE_DEACTIVATED", "Employee deactivated"
+        HR_CREATED = "HR_CREATED", "HR account created"
         PASSWORD_RESET_REQUESTED = (
             "PASSWORD_RESET_REQUESTED",
             "Password reset requested",

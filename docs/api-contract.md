@@ -222,6 +222,57 @@ Unauthenticated requests return HTTP `401`; a non-HR/Admin role returns HTTP `40
 - `429`: rate-limit response if configured by deployment/middleware; no project-wide DRF throttle is currently configured.
 - `500`: unexpected server error; client should show a generic message without echoing credentials or personal data.
 
+
+## Admin HR account management
+
+### `POST /api/admin/hr/`
+
+Authentication: Active JWT access token required. Only users with the
+`ADMIN` application role may create HR accounts.
+
+Request:
+
+```json
+{
+  "email": "hr@company.com",
+  "first_name": "Priya",
+  "last_name": "Sharma"
+}
+```
+
+Success: HTTP `201`.
+
+```json
+{
+  "detail": "HR account created. The activation invitation has been queued for email delivery.",
+  "id": 42,
+  "email": "hr@company.com",
+  "first_name": "Priya",
+  "last_name": "Sharma",
+  "role": "HR",
+  "is_active": false,
+  "invitation": {
+    "id": 18,
+    "delivery_status": "PENDING",
+    "expires_at": "2026-10-17T12:00:00Z"
+  }
+}
+```
+
+The server assigns the HR role. The request cannot create Admin users,
+set the initial password, or create an Employee profile. The account
+remains inactive until the user activates it through
+`POST /api/auth/activate/`.
+
+The invitation token is single-use, expires after 48 hours, and is stored
+as a hash in the database. The existing email task processes delivery
+asynchronously; HTTP `201` means the account was created and an invitation
+was recorded, not that the email has reached the recipient.
+
+Validation errors return HTTP `400`. An unauthenticated request returns
+HTTP `401`. A signed-in non-Admin user returns HTTP `403`.
+
+
 ## Endpoints not currently implemented
 
 There are currently no registered operational REST endpoints for attendance, leave requests, work-schedule management, breaks, or tea/expenses. The existing attendance and expenses modules primarily contain models/placeholders. Do not label dashboard metrics for those features as live or invent routes until business rules, authorization, serializers, views, URLs and tests are defined.
@@ -229,3 +280,4 @@ There are currently no registered operational REST endpoints for attendance, lea
 ## Migration note
 
 This patch adds serializers/views/URLs and CORS configuration only. It introduces no database model fields or tables and requires no new Django migration. Keep existing migrations and PostgreSQL data unchanged.
+

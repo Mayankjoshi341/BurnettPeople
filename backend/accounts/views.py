@@ -21,6 +21,15 @@ from accounts.services.password_reset import (
     request_password_reset,
     confirm_password_reset,
 )
+from rest_framework import serializers
+from rest_framework.permissions import IsAuthenticated
+
+from accounts.permissions import IsAdmin
+from accounts.serializers import HRAccountCreateSerializer
+from accounts.services.hr_accounts import (
+    HRAccountEmailAlreadyExists,
+    create_hr_account_with_invitation,
+)
 
 class CurrentUserView(RetrieveAPIView):
     """Return the currently authenticated user's profile."""
@@ -124,3 +133,44 @@ class PasswordResetConfirmView(APIView):
         return Response({
             "detail": "Your password has been reset successfully."
         })
+
+class AdminCreateHRView(APIView):
+    """Allow an Admin to create an HR account and invite the HR user."""
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request):
+        serializer = HRAccountCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            user, invitation = create_hr_account_with_invitation(
+                **serializer.validated_data,
+                created_by=request.user,
+            )
+        except HRAccountEmailAlreadyExists as exc:
+            raise serializers.ValidationError(
+                {"email": [str(exc)]}
+            ) from exc
+
+        return Response(
+            {
+                "detail": (
+                    "HR account created. The activation invitation "
+                    "has been queued for email delivery."
+                ),
+                "id": user.pk,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+                "is_active": user.is_active,
+                "invitation": {
+                    "id": invitation.pk,
+                    "delivery_status": invitation.delivery_status,
+                    "expires_at": invitation.expires_at,
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
