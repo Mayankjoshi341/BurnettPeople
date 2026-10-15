@@ -1,4 +1,3 @@
-
 from django.contrib import admin
 from django.urls import include, path
 
@@ -10,4 +9,5 @@ urlpatterns = [
     path("api/health/", health_check, name="health"),
     path("api/auth/", include("accounts.urls")),
     path("api/employees/", include("employees.urls")),
+    path("api/organization/", include("organization.urls")),
 ]

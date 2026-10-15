@@ -1,3 +1,8 @@
 from django.contrib import admin
+from .models import Employee, WorkSchedule, EmployeeScheduleAssignment
 
-# Register your models here.
+admin.site.register([
+    Employee,
+    WorkSchedule,
+    EmployeeScheduleAssignment,
+])
