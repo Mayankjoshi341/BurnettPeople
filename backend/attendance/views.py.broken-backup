@@ -1,0 +1,83 @@
+
+class MyAttendanceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        employee = _employee_for_user(request.user)
+
+        # Find an open attendance session first.
+        record = _open_record(employee)
+        assignment = None
+        work_date = None
+
+        # If not checked in, find the employee's current schedule.
+        if record is None:
+            assignment, work_date = _assignment_for_now(employee)
+
+            if assignment is not None:
+                record = (
+                    _record_query()
+                    .filter(employee=employee, work_date=work_date)
+                    .first()
+                )
+
+        # Return the schedule even when no attendance record exists yet.
+        schedule = (
+            record.schedule
+            if record is not None
+            else assignment.work_schedule if assignment is not None else None
+        )
+
+        schedule_data = None
+
+        if schedule is not None:
+            policy = schedule.break_policy
+
+            rules = [
+                {
+                    "id": rule.id,
+                    "break_type": rule.break_type,
+                    "label": rule.get_break_type_display(),
+                    "allowed_start_time": rule.allowed_start_time.strftime("%H:%M"),
+                    "allowed_end_time": rule.allowed_end_time.strftime("%H:%M"),
+                    "duration_minutes": rule.duration_minutes,
+                    "duration_mode": rule.duration_mode,
+                }
+                for rule in policy.rules.filter(is_active=True)
+            ]
+
+            schedule_data = {
+                "id": schedule.id,
+                "name": schedule.name,
+                "start_time": schedule.start_time.strftime("%H:%M"),
+                "end_time": schedule.end_time.strftime("%H:%M"),
+                "workdays": schedule.workdays,
+                "timezone": schedule.timezone,
+                "is_active": schedule.is_active,
+                "late_grace_minutes": schedule.late_grace_minutes,
+                "scheduled_duration_minutes": int(
+                    schedule.scheduled_duration().total_seconds() // 60
+                ),
+                "break_policy": {
+                    "id": policy.id,
+                    "code": policy.code,
+                    "name": policy.name,
+                    "version": policy.version,
+                    "is_active": policy.is_active,
+                    "rules": rules,
+                },
+            }
+
+        return Response({
+            "attendance": (
+                AttendanceRecordSerializer(record).data
+                if record is not None
+                else None
+            ),
+            "schedule": schedule_data,
+            "detail": (
+                None
+                if record is not None
+                else "No attendance record for the current shift yet."
+            ),
+        })

@@ -10,9 +10,6 @@ urlpatterns = [
     path("api/auth/", include("accounts.urls")),
     path("api/employees/", include("employees.urls")),
     path("api/organization/", include("organization.urls")),
-    path(
-    "api/admin/hr/",
-    AdminCreateHRView.as_view(),
-    name="admin-create-hr",
-),
+    path("api/admin/hr/",AdminCreateHRView.as_view(),name="admin-create-hr",),
+    path("api/attendance/", include("attendance.urls")),
 ]
