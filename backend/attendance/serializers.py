@@ -43,15 +43,29 @@ class AttendanceExceptionSerializer(serializers.ModelSerializer):
 
 
 class AttendanceExceptionCreateSerializer(serializers.Serializer):
-    exception_type = serializers.ChoiceField(choices=AttendanceException.ExceptionType.choices, default="OTHER")
-    reason = serializers.CharField(max_length=4000, trim_whitespace=True)
-    attendance_id = serializers.IntegerField(required=False, min_value=1)
+    exception_type = serializers.ChoiceField(
+        choices=AttendanceException.ExceptionType.choices,
+        required=True,
+    )
+    reason = serializers.CharField(
+        max_length=4000,
+        trim_whitespace=True,
+        required=True,
+    )
+    attendance_id = serializers.IntegerField(
+        required=False,
+        min_value=1,
+    )
 
     def validate_reason(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Please explain the attendance exception.")
-        return value.strip()
+        value = value.strip()
 
+        if len(value) < 10:
+            raise serializers.ValidationError(
+                "Please enter at least 10 characters in the description."
+            )
+
+        return value
 
 class AttendanceExceptionReviewSerializer(serializers.Serializer):
     review_status = serializers.ChoiceField(choices=["APPROVED", "REJECTED"])

@@ -14,7 +14,10 @@ from accounts.permissions import IsHROrAdmin
 from accounts.services.audit import record_audit_event
 from accounts.services.invitations import create_or_resend_invitation
 from employees.models import Employee
-from employees.serializers import EmployeeSerializer
+from employees.serializers import (
+    EmployeeSerializer,
+    EmploymentStatusTransitionSerializer,
+)
 
 
 class EmployeeViewSet(viewsets.ModelViewSet):
@@ -82,11 +85,80 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             status=status.HTTP_202_ACCEPTED,
         )
 
+    @action(detail=True, methods=["patch"], url_path="employment-status")
+    @transaction.atomic
+    def update_employment_status(self, request, pk=None):
+        """Change an employee's lifecycle status through a validated HR API."""
+        employee = self.get_object()
+        serializer = EmploymentStatusTransitionSerializer(
+            data=request.data,
+            context={"employee": employee},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        previous_status = employee.employment_status
+        target_status = serializer.validated_data["employment_status"]
+
+        # Repeating the current status is idempotent and does not create a
+        # duplicate audit event or re-run the exit side effects.
+        if target_status == previous_status:
+            return Response(self.get_serializer(employee).data)
+
+        if target_status == Employee.EmploymentStatus.EXITED:
+            exit_date = (
+                serializer.validated_data.get("date_of_exit")
+                or employee.date_of_exit
+                or timezone.localdate()
+            )
+            if exit_date < employee.date_of_joining:
+                raise ValidationError({
+                    "date_of_exit": "Exit date cannot precede the joining date."
+                })
+            employee.date_of_exit = exit_date
+            employee.save(update_fields=["date_of_exit", "updated_at"])
+
+            # Reuse the established soft-exit path so access is disabled,
+            # invitations are revoked, outstanding JWTs are blacklisted,
+            # and the deactivation audit event is recorded.
+            self.perform_destroy(employee)
+        else:
+            employee.employment_status = target_status
+            employee.date_of_exit = None
+            employee.save(update_fields=["employment_status", "date_of_exit", "updated_at"])
+            record_audit_event(
+                action=AuditEvent.Action.EMPLOYMENT_STATUS_CHANGED,
+                actor=request.user,
+                subject_user=employee.user,
+                subject_email=employee.user.email if employee.user_id else employee.official_email,
+                object_type="Employee",
+                object_id=employee.pk,
+                metadata={
+                    "previous_status": previous_status,
+                    "employment_status": target_status,
+                },
+            )
+
+        employee.refresh_from_db()
+        # The employee viewset selects the related User; refresh that cached
+        # object too so activation-status fields reflect the just-completed exit.
+        if employee.user_id is not None:
+            employee.user.refresh_from_db()
+        return Response(self.get_serializer(employee).data)
+
     @transaction.atomic
     def perform_destroy(self, employee):
         # Preserve HR history instead of physically deleting the record.
+        # DELETE must enforce the same exit-date invariant as the explicit
+        # employment-status endpoint, including future-dated new hires.
+        exit_date = employee.date_of_exit or timezone.localdate()
+        if exit_date < employee.date_of_joining:
+            raise ValidationError({
+                "date_of_exit": "Exit date cannot precede the joining date."
+            })
+
+        previous_status = employee.employment_status
         employee.employment_status = Employee.EmploymentStatus.EXITED
-        employee.date_of_exit = employee.date_of_exit or timezone.localdate()
+        employee.date_of_exit = exit_date
         employee.save(update_fields=["employment_status", "date_of_exit", "updated_at"])
 
         user = employee.user if employee.user_id is not None else None
@@ -111,5 +183,8 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             subject_email=user.email if user is not None else "",
             object_type="Employee",
             object_id=employee.pk,
-            metadata={"employment_status": employee.employment_status},
+            metadata={
+                "previous_status": previous_status,
+                "employment_status": employee.employment_status,
+            },
         )
