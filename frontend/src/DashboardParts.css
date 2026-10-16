@@ -1,0 +1,82 @@
+/* Shared parts: notices, calendar, extra status pills */
+
+.admin-dashboard .dash-notice {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  color: #59451e;
+  background: #fff9ec;
+  border: 1px solid #e7c98e;
+  border-left: 4px solid #c38b27;
+  border-radius: 10px;
+}
+.admin-dashboard .dash-notice strong { display: block; margin-bottom: 3px; font-size: 13px; }
+.admin-dashboard .dash-notice p { margin: 0; font-size: 13px; }
+:root[data-theme="dark"] .admin-dashboard .dash-notice {
+  color: #f5e6c3;
+  background: #302817;
+  border-color: #745c2d;
+  border-left-color: #d5a64b;
+}
+
+.admin-dashboard .admin-status.status-rejected { color: #c0392b; background: #ffe6e3; }
+.admin-dashboard .admin-status.status-late { color: #c4721c; background: #ffeed6; }
+.admin-dashboard .admin-status.status-upcoming { color: #5d7283; background: #eaf0f3; }
+
+/* Calendar */
+.admin-dashboard .dash-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.admin-dashboard .dash-calendar-head h3 { margin: 0; font-size: 17px; }
+.admin-dashboard .dash-calendar-nav { display: flex; gap: 6px; margin-left: auto; }
+.admin-dashboard .dash-calendar-nav button {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  color: var(--ad-text);
+  background: var(--ad-panel);
+  border: 1px solid var(--ad-border);
+  border-radius: 9px;
+  font-size: 16px;
+}
+.admin-dashboard .dash-calendar-nav button:hover { background: var(--ad-hover); }
+.admin-dashboard .dash-calendar-nav .dash-today { font-size: 13px; }
+
+.admin-dashboard .dash-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+.admin-dashboard .dash-weekday { padding: 6px 0; color: var(--ad-muted); font-size: 12px; }
+.admin-dashboard .dash-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  font-size: 13px;
+  border-radius: 50%;
+}
+.admin-dashboard .dash-day.today { color: #fff; background: #0f7f61; font-weight: 700; }
+.admin-dashboard .dash-day .dash-mark { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); }
+
+.admin-dashboard .dash-mark { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+.admin-dashboard .dash-mark.present { background: #12805f; }
+.admin-dashboard .dash-mark.late { background: #f08a24; }
+.admin-dashboard .dash-mark.absent { background: #e34e56; }
+.admin-dashboard .dash-mark.leave { background: #6fb1f2; }
+
+.admin-dashboard .dash-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  color: var(--ad-muted);
+  font-size: 12px;
+}
+.admin-dashboard .dash-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.admin-dashboard .dash-legend .dash-mark { width: 9px; height: 9px; }

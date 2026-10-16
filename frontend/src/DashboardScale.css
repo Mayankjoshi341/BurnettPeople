@@ -1,0 +1,26 @@
+/* ==========================================================
+   DashboardScale.css
+   Dashboards design 75% par bane hain, isliye desktop (>=1024px)
+   par sirf dashboard ko 0.75 scale karte hain. Login page
+   ya baaki non-dashboard pages par koi asar nahi.
+   Is file ko AdminDashboard.css ke BAAD import karein.
+   ========================================================== */
+
+@media (min-width: 1024px) {
+  .admin-dashboard {
+    zoom: 0.75;
+    /* zoom ke baad 100vh sirf 75% screen banta hai, isliye compensate */
+    --ad-vh: calc(100vh / 0.75);
+    min-height: var(--ad-vh);
+  }
+
+  .admin-dashboard .admin-sidebar { width: 270px; height: var(--ad-vh); }
+  .admin-dashboard .admin-main { margin-left: 270px; min-height: var(--ad-vh); }
+  .admin-dashboard .admin-modal { max-height: calc(var(--ad-vh) - 40px); }
+
+  /* Breakpoints ab zoom ke hisaab se: 1024px+ par full desktop layout */
+  .admin-dashboard .admin-workspace { padding-right: 30px; padding-left: 30px; }
+  .admin-dashboard .admin-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .admin-dashboard .admin-row { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); }
+  .admin-dashboard .admin-role-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
