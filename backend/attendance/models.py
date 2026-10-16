@@ -170,6 +170,7 @@ class AttendanceException(models.Model):
         LATE_ARRIVAL = "LATE_ARRIVAL", "Late arrival"
         BREAK_OUTSIDE_WINDOW = "BREAK_OUTSIDE_WINDOW", "Break outside allowed window"
         BREAK_DURATION = "BREAK_DURATION", "Break duration violation"
+        INCORRECT_HOURS = "INCORRECT_HOURS", "Incorrect work hours"
         OTHER = "OTHER", "Other"
 
     class ReviewStatus(models.TextChoices):

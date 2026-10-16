@@ -153,3 +153,68 @@ class EmployeeSerializer(serializers.ModelSerializer):
         if latest.delivery_status == AccountInvitation.DeliveryStatus.SENT:
             return "ACTIVATION_PENDING"
         return "EMAIL_PENDING"
+
+class EmploymentStatusTransitionSerializer(serializers.Serializer):
+    """Validate explicit HR-managed employment lifecycle transitions."""
+
+    employment_status = serializers.ChoiceField(
+        choices=Employee.EmploymentStatus.choices,
+        required=True,
+    )
+    date_of_exit = serializers.DateField(required=False, allow_null=True)
+
+    ALLOWED_TRANSITIONS = {
+        Employee.EmploymentStatus.PREBOARDING: {
+            Employee.EmploymentStatus.PREBOARDING,
+            Employee.EmploymentStatus.ACTIVE,
+            Employee.EmploymentStatus.EXITED,
+        },
+        Employee.EmploymentStatus.ACTIVE: {
+            Employee.EmploymentStatus.ACTIVE,
+            Employee.EmploymentStatus.NOTICE_PERIOD,
+            Employee.EmploymentStatus.EXITED,
+        },
+        Employee.EmploymentStatus.NOTICE_PERIOD: {
+            Employee.EmploymentStatus.NOTICE_PERIOD,
+            Employee.EmploymentStatus.ACTIVE,
+            Employee.EmploymentStatus.EXITED,
+        },
+        # Exited records are terminal; rehire should be a separate workflow.
+        Employee.EmploymentStatus.EXITED: {
+            Employee.EmploymentStatus.EXITED,
+        },
+    }
+
+    def validate(self, attrs):
+        employee = self.context["employee"]
+        target_status = attrs["employment_status"]
+        requested_exit_date = attrs.get("date_of_exit")
+
+        if target_status not in self.ALLOWED_TRANSITIONS[employee.employment_status]:
+            raise serializers.ValidationError({
+                "employment_status": (
+                    f"Cannot change employment status from "
+                    f"{employee.employment_status} to {target_status}."
+                )
+            })
+
+        if requested_exit_date is not None:
+            if target_status != Employee.EmploymentStatus.EXITED:
+                raise serializers.ValidationError({
+                    "date_of_exit": "An exit date can only be supplied when status is EXITED."
+                })
+            if requested_exit_date < employee.date_of_joining:
+                raise serializers.ValidationError({
+                    "date_of_exit": "Exit date cannot precede the joining date."
+                })
+            if (
+                employee.employment_status == Employee.EmploymentStatus.EXITED
+                and requested_exit_date != employee.date_of_exit
+            ):
+                raise serializers.ValidationError({
+                    "date_of_exit": (
+                        "Correcting an existing exit date requires a separate HR correction workflow."
+                    )
+                })
+
+        return attrs
