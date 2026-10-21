@@ -1,98 +1,56 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
 
-import apiClient from "./api/client";
-import { userDisplayName, userInitials, roleLabel } from "./auth/userDisplay";
+import { userDisplayName } from "./auth/userDisplay";
+import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
-import "./AdminDashboard.css"; // shared look (sidebar, cards, tables)
-import "./HRDashboard.css"; // HR-only additions
-import burnettLogo from "./assets/burnettpeople-logo.png";
-import loginDarkTeal from "./assets/login-dark-teal.png";
-import loginSoftMint from "./assets/login-soft-mint.png";
-
-/* ------------------------------------------------------------------
-   SETTINGS YOU MAY NEED TO CHANGE
-   ------------------------------------------------------------------ */
-// true  = sample numbers for cards/charts that have no API yet (design preview)
-// false = only real data; unconnected cards show "—"
-const SHOW_DEMO_DATA = true;
-
-const EMPLOYEES_ENDPOINT = "/employees/"; // real - your employee API
-const EXCEPTIONS_ENDPOINT = null; // e.g. "/attendance/exceptions/review/" when backend is ready
-
-/* ------------------------------------------------------------------
-   Helpers
-   ------------------------------------------------------------------ */
-function getArrayResponse(response) {
-  if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.results)) return response.results;
-  return [];
-}
-
-function getErrorMessage(error, fallback) {
-  if (error?.status === 401) return "Your session has expired. Please sign in again.";
-  if (error?.status === 403) return "Your account does not have permission to view this.";
-  return error?.message || fallback;
-}
-
-function pickName(value) {
-  if (!value) return "";
-  if (typeof value === "string") return value;
-  return value.name || value.title || "";
-}
-
-function normalizeEmployee(raw) {
-  const full =
-    raw.full_name ||
-    raw.name ||
-    [raw.first_name, raw.last_name].filter(Boolean).join(" ") ||
-    "";
-  return {
-    id: raw.id ?? raw.employee_code ?? raw.email,
-    code: raw.employee_code || raw.code || "—",
-    name: full || "—",
-    email: raw.email || raw.work_email || "—",
-    department: pickName(raw.department_name || raw.department) || "—",
-    designation: pickName(raw.designation_name || raw.designation) || "—",
-    status: raw.employment_status || raw.status || "—",
-  };
-}
-
-function initialsOf(name = "") {
-  return (
-    name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join("") || "?"
-  );
-}
-
-const AVATAR_TONES = ["#dbeafe", "#fde8dc", "#dcf5ea", "#e9e3fb", "#fff0cf"];
+import MyPeople from "./MyPeople";
+import HREmployeeManagement from "./HREmployeeManagement";
+import HREmployeeOnboarding from "./HREmployeeOnboarding";
+import HRAssets from "./HRAssets";
+import HRSettings from "./HRSettings";
+import HRProfile from "./HRProfile";
+import HRAttendance from "./HRAttendance";
+import HRExceptionReview from "./HRExceptionReview";
+import {
+  AVATAR_TONES,
+  SHOW_DEMO_DATA,
+  initialsOf,
+  useEmployees,
+} from "./dashboardUtils";
+import "./HRDashboard.css"; // HR overview additions
+import "./HRPages.css"; // Employee Management / Onboarding / Assets / Settings / Profile
 
 /* ------------------------------------------------------------------
    Navigation
    ------------------------------------------------------------------ */
 const NAV = [
   { id: "overview", label: "Overview", icon: "home" },
+  { id: "people", label: "My People", icon: "people" },
   { id: "employees", label: "Employees", icon: "users" },
-  { id: "schedules", label: "Work Schedules", icon: "calendar" },
+  { id: "onboarding", label: "Onboarding", icon: "userplus" },
   { id: "attendance", label: "Attendance & Breaks", icon: "clock" },
   { id: "exceptions", label: "Exception Reviews", icon: "alert" },
   { id: "leave", label: "Leave Management", icon: "plane" },
   { id: "assets", label: "Assets & Devices", icon: "laptop" },
   { id: "reports", label: "Reports", icon: "chart" },
+  { id: "settings", label: "HR Settings", icon: "gear" },
   { id: "notifications", label: "Notifications", icon: "bell", badge: true },
   { id: "profile", label: "My Profile", icon: "user" },
 ];
 
 const PAGE_META = {
   overview: ["HR Dashboard", "Manage people, attendance, leave and more."],
-  employees: ["Employees", "Search and filter employee records."],
-  schedules: ["Work Schedules", "Assign and review shift schedules."],
-  attendance: ["Attendance & Breaks", "Track check-ins, breaks and hours."],
-  exceptions: ["Exception Reviews", "Review reported attendance issues."],
+  people: ["My People", "Explore your organization, connect with colleagues and celebrate achievements."],
+  employees: ["Employee Management", "Manage employees, assign managers, update details and control access."],
+  onboarding: ["Employee Onboarding", "Add a new employee to your organization and send an invitation."],
+  attendance: ["Attendance Overview", "View today's attendance, break activity and the last 7 days at a glance."],
+  exceptions: ["Exception Review", "Review and approve employee attendance and break exceptions."],
   leave: ["Leave Management", "Review and track leave requests."],
-  assets: ["Assets & Devices", "Track devices issued to employees."],
+  assets: ["Assets & Devices", "View company devices, assign them to employees and track assignments."],
   reports: ["Reports", "Workforce and attendance reports."],
+  settings: ["HR Settings", "Manage company policies, time-off rules, assets, schedules and other HR configurations."],
   notifications: ["Notifications", "Everything that needs your attention."],
-  profile: ["My Profile", "Your account details."],
+  profile: ["My Profile", "View and manage your personal, work and HR information."],
 };
 
 /* ------------------------------------------------------------------
@@ -211,15 +169,6 @@ function StackedChart({ data }) {
         <span><i className="dot-absent" /> Absent</span>
       </div>
     </>
-  );
-}
-
-function NotConnected({ title, text }) {
-  return (
-    <div className="hr-api-notice" role="status">
-      <strong>{title}</strong>
-      <p>{text}</p>
-    </div>
   );
 }
 
@@ -400,244 +349,6 @@ function OverviewPage({ name, stats, departments, go }) {
   );
 }
 
-function EmployeesPage({ employees, loading, error, onRefresh }) {
-  const navigate = useNavigate();
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("ALL");
-
-  const statuses = useMemo(
-    () => [...new Set(employees.map((e) => e.status).filter((s) => s && s !== "—"))],
-    [employees],
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return employees.filter((e) => {
-      const matchStatus = status === "ALL" || e.status === status;
-      const matchQuery =
-        !q || [e.code, e.name, e.email, e.department, e.designation].some((v) => String(v).toLowerCase().includes(q));
-      return matchStatus && matchQuery;
-    });
-  }, [employees, query, status]);
-
-  return (
-    <section className="admin-panel">
-      <div className="admin-page-intro">
-        <div>
-          <h2>Employee Overview</h2>
-          <p>Search and filter employee information from the backend.</p>
-        </div>
-        <div className="hr-button-row">
-          <button type="button" className="admin-secondary-button" onClick={onRefresh} disabled={loading}>
-            {loading ? "Refreshing…" : "Refresh records"}
-          </button>
-          <button type="button" className="admin-secondary-button" onClick={() => navigate("/employees")}>
-            Open directory
-          </button>
-          <button type="button" className="admin-primary-button" onClick={() => navigate("/employees/new")}>
-            <Icon name="userplus" size={18} /> Add employee
-          </button>
-        </div>
-      </div>
-
-      <div className="hr-filters">
-        <div className="hr-filter-field">
-          <label htmlFor="emp-search">Search employees</label>
-          <input
-            id="emp-search"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Name, code, email, department…"
-          />
-        </div>
-        <div className="hr-filter-field">
-          <label htmlFor="emp-status">Employment status</label>
-          <select id="emp-status" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="ALL">All statuses</option>
-            {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {error && <div role="alert" className="admin-form-error">{error}</div>}
-
-      <p className="admin-note hr-count">
-        {loading ? "Loading employee records…" : `Showing ${filtered.length} of ${employees.length} employee records.`}
-      </p>
-
-      {!loading && filtered.length === 0 ? (
-        <p className="admin-note">No employee records match your filters.</p>
-      ) : (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr><th>EMPLOYEE CODE</th><th>EMPLOYEE</th><th>EMAIL</th><th>DEPARTMENT</th><th>DESIGNATION</th><th>STATUS</th></tr>
-            </thead>
-            <tbody>
-              {filtered.map((e, i) => (
-                <tr key={e.id}>
-                  <td>{e.code}</td>
-                  <td>
-                    <div className="admin-person">
-                      <span className="admin-person-avatar" style={{ background: AVATAR_TONES[i % AVATAR_TONES.length] }}>
-                        {initialsOf(e.name)}
-                      </span>
-                      <strong>{e.name}</strong>
-                    </div>
-                  </td>
-                  <td>{e.email}</td>
-                  <td>{e.department}</td>
-                  <td>{e.designation}</td>
-                  <td><span className="admin-status status-ontime">{e.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ExceptionsPage() {
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [issueFilter, setIssueFilter] = useState("ALL");
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(Boolean(EXCEPTIONS_ENDPOINT));
-  const [error, setError] = useState("");
-  const [selected, setSelected] = useState(null);
-
-  useEffect(() => {
-    if (!EXCEPTIONS_ENDPOINT) return undefined;
-    let cancelled = false;
-    apiClient
-      .get(EXCEPTIONS_ENDPOINT)
-      .then((res) => !cancelled && setItems(getArrayResponse(res)))
-      .catch((err) => !cancelled && setError(getErrorMessage(err, "Could not load exception requests.")))
-      .finally(() => !cancelled && setLoading(false));
-    return () => { cancelled = true; };
-  }, []);
-
-  const statusOf = (r) => r.status_label || r.review_status || "PENDING";
-  const issueOf = (r) => r.exception_type;
-
-  const filtered = items.filter(
-    (r) =>
-      (statusFilter === "ALL" || statusOf(r) === statusFilter) &&
-      (issueFilter === "ALL" || issueOf(r) === issueFilter),
-  );
-
-  return (
-    <section className="admin-panel">
-      <div className="admin-panel-heading">
-        <div>
-          <h2>Attendance Exceptions</h2>
-          <p>Review reported attendance issues, such as missed check-ins or incorrect records.</p>
-        </div>
-        {!EXCEPTIONS_ENDPOINT && <span className="hr-connection-status">API not connected</span>}
-      </div>
-
-      {!EXCEPTIONS_ENDPOINT && (
-        <NotConnected
-          title="Exception requests are not connected yet."
-          text="Real exception records cannot be loaded or updated until the backend provides the required API."
-        />
-      )}
-      {error && <div role="alert" className="admin-form-error">{error}</div>}
-
-      <div className="hr-filters">
-        <div className="hr-filter-field">
-          <label htmlFor="ex-status">Filter by status</label>
-          <select id="ex-status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="ALL">All statuses</option>
-            <option value="PENDING">Pending</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-          </select>
-        </div>
-        <div className="hr-filter-field">
-          <label htmlFor="ex-issue">Filter by issue</label>
-          <select id="ex-issue" value={issueFilter} onChange={(e) => setIssueFilter(e.target.value)}>
-            <option value="ALL">All issue types</option>
-            <option value="MISSED_CHECK_IN">Missed check-in</option>
-            <option value="MISSED_CHECK_OUT">Missed check-out</option>
-            <option value="INCORRECT_HOURS">Incorrect work hours</option>
-            <option value="OTHER">Other</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="hr-exceptions-layout">
-        <div className="hr-box">
-          <div className="hr-box-heading">
-            <h3>Exception requests</h3>
-            <small>{filtered.length} records</small>
-          </div>
-          {loading ? (
-            <p className="admin-note">Loading…</p>
-          ) : filtered.length === 0 ? (
-            <div className="hr-empty">
-              <span className="hr-empty-icon"><Icon name="alert" size={22} /></span>
-              <h4>No exception records available</h4>
-              <p>{EXCEPTIONS_ENDPOINT ? "Nothing matches the selected filters." : "Connect the attendance exceptions API to populate this list."}</p>
-            </div>
-          ) : (
-            <div className="admin-table-wrap">
-              <table className="admin-table">
-                <thead><tr><th>SUBMITTED</th><th>ISSUE</th><th>STATUS</th><th /></tr></thead>
-                <tbody>
-                  {filtered.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : "—"}</td>
-                      <td>{r.exception_label || r.exception_type}</td>
-                      <td><span className="admin-status status-pending">{statusOf(r)}</span></td>
-                      <td>
-                        <button type="button" className="admin-secondary-button hr-small" onClick={() => setSelected(r)}>View</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div className="hr-box">
-          <div className="hr-box-heading"><h3>Request details</h3></div>
-          {selected ? (
-            <div className="hr-detail">
-              <p><b>Issue</b><br />{selected.exception_label || selected.exception_type}</p>
-              <p><b>Description</b><br />{selected.reason}</p>
-              <p><b>Status</b><br />{statusOf(selected)}</p>
-              <p className="admin-note">Approve and reject actions are unavailable until a backend workflow is provided.</p>
-            </div>
-          ) : (
-            <div className="hr-empty">
-              <span className="hr-empty-icon"><Icon name="search" size={22} /></span>
-              <h4>No request selected</h4>
-              <p>When real requests are available, select one from the list to review its details here.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ProfilePage({ user, name }) {
-  return (
-    <section className="admin-panel">
-      <div className="admin-page-intro">
-        <div>
-          <h2>{name}</h2>
-          <p>{roleLabel(user?.role)} · {user?.email || "No email on file"}</p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function ComingSoon({ title, text }) {
   return (
     <section className="admin-panel admin-settings-placeholder">
@@ -653,31 +364,8 @@ function ComingSoon({ title, text }) {
    ------------------------------------------------------------------ */
 function HRDashboard({ user, onLogout }) {
   const name = userDisplayName(user);
-
   const [section, setSection] = useState("overview");
-  const [bellOpen, setBellOpen] = useState(false);
-
-  const [employees, setEmployees] = useState([]);
-  const [empLoading, setEmpLoading] = useState(true);
-  const [empError, setEmpError] = useState("");
-
-  const loadEmployees = useCallback(async () => {
-    setEmpLoading(true);
-    setEmpError("");
-    try {
-      const res = await apiClient.get(EMPLOYEES_ENDPOINT);
-      setEmployees(getArrayResponse(res).map(normalizeEmployee));
-    } catch (error) {
-      setEmployees([]);
-      setEmpError(getErrorMessage(error, "Could not load employee records."));
-    } finally {
-      setEmpLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void Promise.resolve().then(() => loadEmployees());
-  }, [loadEmployees]);
+  const { employees } = useEmployees();
 
   // Real department counts from employee records.
   const departments = useMemo(() => {
@@ -702,113 +390,46 @@ function HRDashboard({ user, onLogout }) {
     switch (section) {
       case "overview":
         return <OverviewPage name={name} stats={stats} departments={departments} go={setSection} />;
+      case "people":
+        return <MyPeople canAdd onAdd={() => setSection("onboarding")} />;
       case "employees":
-        return <EmployeesPage employees={employees} loading={empLoading} error={empError} onRefresh={loadEmployees} />;
+        return <HREmployeeManagement onAdd={() => setSection("onboarding")} />;
+      case "onboarding":
+        return <HREmployeeOnboarding onBack={() => setSection("employees")} onDone={() => setSection("employees")} />;
+      case "attendance":
+        return <HRAttendance onOpenExceptions={() => setSection("exceptions")} />;
       case "exceptions":
-        return <ExceptionsPage />;
+        return <HRExceptionReview />;
+      case "assets":
+        return <HRAssets />;
+      case "settings":
+        return <HRSettings />;
+      case "profile":
+        return <HRProfile user={user} />;
       case "leave":
         return <ComingSoon title="Leave Management" text="Leave request review is not connected to an operational API yet." />;
-      case "profile":
-        return <ProfilePage user={user} name={name} />;
       default:
         return <ComingSoon title={title} />;
     }
   }
 
   return (
-    <div className="admin-dashboard hr-dashboard">
-      <aside className="admin-sidebar" style={{ backgroundImage: `url(${loginDarkTeal})` }}>
-        <a className="admin-brand" href="/hr" onClick={(e) => { e.preventDefault(); setSection("overview"); }}>
-          <img src={burnettLogo} alt="BurnettPeople" />
-          <span>YOUR PEOPLE. YOUR FUTURE.</span>
-        </a>
-
-        <nav className="admin-nav" aria-label="HR sections">
-          {NAV.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`admin-nav-link${section === item.id ? " active" : ""}`}
-              aria-current={section === item.id ? "page" : undefined}
-              onClick={() => setSection(item.id)}
-            >
-              <span className="admin-nav-icon"><Icon name={item.icon} size={22} /></span>
-              {item.label}
-              {item.badge && unread > 0 && <span className="admin-nav-badge">{Math.min(unread, 99)}</span>}
-            </button>
-          ))}
-        </nav>
-
-        <div className="admin-sidebar-bottom">
-          <div className="admin-sidebar-tagline">
-            <span>Building better workplaces together.</span>
-            <span className="admin-tagline-arrow"><Icon name="arrow" size={16} /></span>
-          </div>
-          <div className="admin-sidebar-profile">
-            <span className="admin-profile-avatar">{userInitials(user)}</span>
-            <span className="admin-profile-details">
-              <strong>{name}</strong>
-              <small>{roleLabel(user?.role)}</small>
-            </span>
-            <span className="admin-online-dot" title="Online" />
-          </div>
-          <button type="button" className="admin-sidebar-logout" onClick={onLogout}>
-            <Icon name="logout" size={18} /> Log out
-          </button>
-        </div>
-      </aside>
-
-      <div className="admin-main">
-        <header className="admin-header">
-          <div className="admin-header-heading">
-            <h1>{title}</h1>
-            <p>{subtitle}</p>
-          </div>
-
-          <div className="admin-header-actions">
-            <label className="admin-search">
-              <Icon name="search" size={18} />
-              <input type="search" placeholder="Search employees, leaves, schedules..." aria-label="Search" />
-              <kbd>Ctrl + K</kbd>
-            </label>
-
-            <div className="admin-notification-wrap">
-              <button
-                type="button"
-                className="admin-notification-button"
-                onClick={() => setBellOpen((o) => !o)}
-                aria-label="Notifications"
-                aria-expanded={bellOpen}
-              >
-                <Icon name="bell" size={20} />
-                {unread > 0 && <span className="admin-notification-count">{Math.min(unread, 99)}</span>}
-              </button>
-              {bellOpen && (
-                <div className="admin-notification-popover" role="status">
-                  {unread > 0 ? `You have ${unread} items waiting for your action.` : "You're all caught up."}
-                </div>
-              )}
-            </div>
-
-            <div className="admin-header-profile">
-              <span className="admin-topbar-avatar">{userInitials(user)}</span>
-              <span className="admin-topbar-user-details">
-                <strong>{name}</strong>
-                <small>{roleLabel(user?.role)}</small>
-              </span>
-            </div>
-          </div>
-        </header>
-
-        <main className="admin-workspace" style={{ backgroundImage: `url(${loginSoftMint})` }}>
-          {renderPage()}
-          <footer className="admin-footer">
-            <span>© 2026 BurnettPeople</span>
-            <span>HR workspace</span>
-          </footer>
-        </main>
-      </div>
-    </div>
+    <DashboardShell
+      rootClass="hr-dashboard"
+      user={user}
+      onLogout={onLogout}
+      nav={NAV}
+      section={section}
+      setSection={setSection}
+      title={title}
+      subtitle={subtitle}
+      searchPlaceholder="Search employees, leaves, schedules..."
+      unread={unread}
+      homePath="/hr"
+      footerLabel="HR workspace"
+    >
+      {renderPage()}
+    </DashboardShell>
   );
 }
 

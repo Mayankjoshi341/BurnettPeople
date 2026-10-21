@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Icon } from "./DashboardIcons";
 import "./DashboardParts.css";
+import "./AdminPages.css"; /* styles for <Pager /> (ap-pager) */
 
 export function StatCard({ icon, tone = "green", label, value, note, noteClass = "", onClick }) {
   return (
@@ -43,6 +44,71 @@ export function WelcomeBanner({ name, text }) {
         <small>Have a productive day!</small>
       </div>
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------
+   Pager - pagination bar used by the HR / table pages.
+   Flexible on purpose: it accepts the common prop names, so existing
+   <Pager ... /> calls keep working.
+     current page   : page | current
+     total pages    : pages | totalPages        (or computed from total / pageSize)
+     total items    : total | totalItems | count
+     rows per page  : pageSize | size | perPage (default 10)
+     on page change : onPage | onPageChange | onChange | setPage
+     label          : noun | label  (e.g. "employees")
+     rows selector  : onSize | onPageSizeChange  (optional, shows "10 / page")
+   ------------------------------------------------------------------ */
+export function Pager(props) {
+  const {
+    page: pageProp, current, pages, totalPages, total: totalProp, totalItems, count,
+    pageSize, size, perPage, onPage, onPageChange, onChange, setPage,
+    noun, label = "items", onSize, onPageSizeChange,
+  } = props;
+
+  const per = Number(pageSize || size || perPage || 10);
+  const total = Number(totalProp ?? totalItems ?? count ?? 0);
+  const lastPage = Math.max(1, Number(pages || totalPages || Math.ceil(total / per) || 1));
+  const page = Math.min(Math.max(1, Number(pageProp ?? current ?? 1)), lastPage);
+  const change = onPage || onPageChange || onChange || setPage;
+  const sizeChange = onSize || onPageSizeChange;
+  const go = (n) => change?.(Math.min(Math.max(1, n), lastPage));
+
+  const from = total ? (page - 1) * per + 1 : 0;
+  const to = Math.min(total, page * per);
+
+  const nums = [];
+  for (let n = 1; n <= lastPage; n += 1) {
+    if (n === 1 || n === lastPage || Math.abs(n - page) <= 1) nums.push(n);
+    else if (nums[nums.length - 1] !== "…") nums.push("…");
+  }
+
+  return (
+    <div className="ap-pager">
+      <span>{total ? `Showing ${from} to ${to} of ${total} ${noun || label}` : `Page ${page} of ${lastPage}`}</span>
+      <div className="ap-pager-btns">
+        <button type="button" onClick={() => go(page - 1)} disabled={page <= 1} aria-label="Previous page">
+          <Icon name="chevleft" size={14} />
+        </button>
+        {nums.map((n, i) =>
+          n === "…" ? (
+            <span key={`gap${i}`} className="ap-gap">…</span>
+          ) : (
+            <button key={n} type="button" className={n === page ? "on" : ""} aria-current={n === page ? "page" : undefined} onClick={() => go(n)}>
+              {n}
+            </button>
+          ),
+        )}
+        <button type="button" onClick={() => go(page + 1)} disabled={page >= lastPage} aria-label="Next page">
+          <Icon name="chevron" size={14} />
+        </button>
+        {sizeChange && (
+          <select value={per} onChange={(e) => sizeChange(Number(e.target.value))} aria-label="Rows per page">
+            {[10, 20, 50].map((n) => <option key={n} value={n}>{n} / page</option>)}
+          </select>
+        )}
+      </div>
+    </div>
   );
 }
 
