@@ -1,6 +1,7 @@
 import burnettLogo from "../assets/burnettpeople-logo.png";
 import loginDarkTeal from "../assets/login-dark-teal.png";
 import loginSoftMint from "../assets/login-soft-mint.png";
+import loginOffice from "../assets/login-office.png";
 
 /**
  * Two-panel layout used by every public/auth page.
@@ -16,6 +17,13 @@ export default function AuthLayout({ headline, text, children }) {
         className="bp-brand"
         style={{ backgroundImage: `url(${loginDarkTeal})` }}
       >
+        <img
+          src={loginOffice}
+          alt=""
+          aria-hidden="true"
+          className="bp-brand-art"
+        />
+
         <div className="bp-brand-top">
           <img src={burnettLogo} alt="BurnettPeople" className="bp-logo" />
           <span className="bp-tagline">Your People. Your Future.</span>
