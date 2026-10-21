@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 import apiClient from "./api/client";
+import { Icon } from "./DashboardIcons";
+import AdminAssets from "./AdminAssets";
+import AdminAuditLogs from "./AdminAuditLogs";
+import AdminCompanySettings from "./AdminCompanySettings";
+import AdminEmployees from "./AdminEmployees";
+import AdminReports from "./AdminReports";
+import MyPeople from "./MyPeople";
 import "./AdminDashboard.css";
+import "./AdminPages.css";
 import burnettLogo from "./assets/burnettpeople-logo.png";
 import loginDarkTeal from "./assets/login-dark-teal.png";
 import loginSoftMint from "./assets/login-soft-mint.png";
@@ -19,74 +26,38 @@ const METRICS_ENDPOINT = "/admin/metrics/";
 const HR_CREATE_ENDPOINT = "/auth/hr-users/";
 
 /* ------------------------------------------------------------------
-   Icons (inline SVG, no extra package needed)
-   ------------------------------------------------------------------ */
-const ICONS = {
-  home: "M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10",
-  users: "M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 20v-2a4 4 0 0 0-3-3.9M16 2.1a4 4 0 0 1 0 7.8",
-  shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
-  building: "M4 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17M14 9h5a1 1 0 0 1 1 1v11M2 21h20M8 7h2M8 11h2M8 15h2",
-  calendar: "M3 5h18v16H3zM3 10h18M8 3v4M16 3v4",
-  clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2",
-  alert: "M12 3L2 21h20L12 3zM12 10v4M12 17.5v.01",
-  plane: "M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z",
-  laptop: "M4 5h16v11H4zM2 20h20",
-  bell: "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0",
-  gear: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z",
-  search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3",
-  sun: "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4",
-  chevron: "M9 6l6 6-6 6",
-  arrow: "M5 12h14M13 6l6 6-6 6",
-  check: "M5 12l5 5L20 7",
-  logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
-  userplus: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6",
-};
-
-function Icon({ name, size = 20 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={ICONS[name]} />
-    </svg>
-  );
-}
-
-/* ------------------------------------------------------------------
    Navigation (reference design)
    ------------------------------------------------------------------ */
 const NAV = [
   { id: "overview", label: "Overview", icon: "home" },
   { id: "employees", label: "Employees", icon: "users" },
+  { id: "people", label: "My People", icon: "people" },
   { id: "hr-roles", label: "HR & Roles", icon: "shield" },
-  { id: "departments", label: "Departments & Designations", icon: "building" },
-  { id: "schedules", label: "Work Schedules", icon: "calendar" },
+  { id: "company", label: "Company Settings", icon: "building" },
   { id: "attendance", label: "Attendance & Breaks", icon: "clock" },
   { id: "exceptions", label: "Exception Reviews", icon: "alert" },
   { id: "leave", label: "Leave Management", icon: "plane" },
   { id: "assets", label: "Assets & Devices", icon: "laptop" },
+  { id: "reports", label: "Reports", icon: "file" },
+  { id: "audit", label: "Audit Logs", icon: "lock" },
   { id: "notifications", label: "Notifications", icon: "bell", badge: true },
-  { id: "settings", label: "Settings", icon: "gear" },
+  // { id: "settings", label: "Settings", icon: "gear" },
 ];
 
 const PAGE_META = {
   overview: ["Admin Dashboard", "Your people, your operations, one place."],
-  employees: ["Employees", "Browse and manage the employee directory."],
+  employees: ["Employee Management", "View employees, review details and update managers, roles and status."],
+  people: ["My People", "Explore your organization, connect with colleagues and celebrate achievements."],
   "hr-roles": ["HR & Roles", "Onboard HR users and review access roles."],
-  departments: ["Departments & Designations", "Organize teams and job titles."],
-  schedules: ["Work Schedules", "Assign and review shift schedules."],
+  company: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
+  departments: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
+  schedules: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
   attendance: ["Attendance & Breaks", "Track check-ins, breaks and hours."],
   exceptions: ["Exception Reviews", "Resolve attendance exceptions."],
   leave: ["Leave Management", "Approve and track leave requests."],
-  assets: ["Assets & Devices", "Track devices issued to employees."],
+  assets: ["Assets & Devices", "Manage company devices and equipment, and track their status."],
+  reports: ["Reports", "View attendance, leave and workplace activity reports by date."],
+  audit: ["Audit Logs", "Track all activities and changes happening in the system. Monitor user actions, data changes, and security events."],
   notifications: ["Notifications", "Everything that needs your attention."],
   settings: ["Settings", "Company preferences and configuration."],
 };
@@ -512,23 +483,6 @@ function HrRolesPage({ onAddHr }) {
   );
 }
 
-function EmployeesPage() {
-  const navigate = useNavigate();
-  return (
-    <section className="admin-panel">
-      <div className="admin-page-intro">
-        <div>
-          <h2>Employees</h2>
-          <p>Open the employee directory to search, view and edit profiles.</p>
-        </div>
-        <button type="button" className="admin-primary-button" onClick={() => navigate("/employees")}>
-          Open directory <Icon name="arrow" size={16} />
-        </button>
-      </div>
-    </section>
-  );
-}
-
 function ComingSoon({ title }) {
   return (
     <section className="admin-panel admin-settings-placeholder">
@@ -566,12 +520,21 @@ export default function AdminDashboard({ user, onLogout }) {
   }, []);
 
   const [title, subtitle] = PAGE_META[section];
+  // "departments" / "schedules" (used by Overview shortcuts) live inside Company Settings
+  const activeNav = section === "departments" || section === "schedules" ? "company" : section;
 
   function renderPage() {
     switch (section) {
       case "overview": return <OverviewPage user={user} data={data} go={setSection} />;
-      case "employees": return <EmployeesPage />;
+      case "employees": return <AdminEmployees />;
+      case "people": return <MyPeople />;
       case "hr-roles": return <HrRolesPage onAddHr={() => setHrOpen(true)} />;
+      case "company":
+      case "departments": return <AdminCompanySettings key={section} initialTab="departments" />;
+      case "schedules": return <AdminCompanySettings key={section} initialTab="schedules" />;
+      case "assets": return <AdminAssets />;
+      case "reports": return <AdminReports />;
+      case "audit": return <AdminAuditLogs />;
       default: return <ComingSoon title={title} />;
     }
   }
@@ -589,8 +552,8 @@ export default function AdminDashboard({ user, onLogout }) {
             <button
               key={item.id}
               type="button"
-              className={`admin-nav-link${section === item.id ? " active" : ""}`}
-              aria-current={section === item.id ? "page" : undefined}
+              className={`admin-nav-link${activeNav === item.id ? " active" : ""}`}
+              aria-current={activeNav === item.id ? "page" : undefined}
               onClick={() => setSection(item.id)}
             >
               <span className="admin-nav-icon"><Icon name={item.icon} size={22} /></span>

@@ -31,7 +31,7 @@ export function getErrorMessage(error, fallback) {
 function pickName(value) {
   if (!value) return "";
   if (typeof value === "string") return value;
-  return value.name || value.title || "";
+  return value.name || value.full_name || value.title || "";
 }
 
 export function initialsOf(name = "") {
@@ -42,19 +42,57 @@ export function initialsOf(name = "") {
 
 export function normalizeEmployee(raw) {
   const full =
+    [raw.first_name, raw.last_name].filter(Boolean).join(" ") ||
     raw.full_name ||
     raw.name ||
-    [raw.first_name, raw.last_name].filter(Boolean).join(" ") ||
     "";
   return {
-    id: raw.id ?? raw.employee_code ?? raw.email,
-    code: raw.employee_code || raw.code || "—",
-    name: full || "—",
-    email: raw.email || raw.work_email || "—",
-    department: pickName(raw.department_name || raw.department) || "—",
-    designation: pickName(raw.designation_name || raw.designation) || "—",
-    status: raw.employment_status || raw.status || "—",
+    id: raw.id ?? raw.employee_code ?? raw.official_email,
+    code: raw.employee_code || "—",
+    name: full || raw.official_email || "—",
+    firstName: raw.first_name || "",
+    lastName: raw.last_name || "",
+    email: raw.official_email || raw.email || "—",
+    department: pickName(raw.department_name) || "—",
+    departmentId: raw.department ?? null,
+    designation: pickName(raw.designation_title) || "—",
+    designationId: raw.designation ?? null,
+    status: raw.employment_status || "—",
+    phone: raw.phone_number || "—",
+    manager: pickName(raw.manager_name) || "—",
+    managerId: raw.manager ?? null,
+    role: raw.portal_role || "—",
+    joined: raw.date_of_joining || "",
+    exitDate: raw.date_of_exit || "",
+    location: pickName(raw.work_location_name) || "—",
+    employmentType: raw.employment_type || "—",
+    activation: raw.account_activation_status || "",
+    hasUser: Boolean(raw.user),
   };
+}
+
+const STATUS_LABELS = {
+  PREBOARDING: "Preboarding",
+  ACTIVE: "Active",
+  NOTICE_PERIOD: "Notice period",
+  EXITED: "Exited",
+};
+export function statusLabel(status) {
+  return STATUS_LABELS[status] || status || "—";
+}
+
+const ACTIVATION_LABELS = {
+  EMAIL_PENDING: "Invitation email queued; delivery not yet confirmed",
+  ACTIVATION_PENDING: "Invitation sent; account not activated",
+  DELIVERY_FAILED: "Invitation delivery failed",
+  INVITATION_EXPIRED: "Invitation expired",
+  INVITATION_REVOKED: "Invitation revoked",
+  ACTIVATED: "Account activated",
+  NOT_INVITED: "No invitation recorded",
+  NO_PORTAL_ACCOUNT: "No linked portal account",
+};
+export function activationText(status) {
+  return ACTIVATION_LABELS[status] || status || "—";
 }
 
 export function formatTime(value) {
@@ -110,4 +148,66 @@ export function useEmployees() {
   }, [reload]);
 
   return { employees, loading, error, reload };
+}
+
+/* Generic API call that gives a clear message if your apiClient lacks a method. */
+export async function callApi(method, url, body) {
+  const fn = apiClient[method];
+  if (typeof fn !== "function") {
+    throw new Error(`apiClient.${method}() is not available. Add it to api/client.js.`);
+  }
+  return body === undefined ? fn.call(apiClient, url) : fn.call(apiClient, url, body);
+}
+
+export function statusTone(status = "") {
+  if (/inactive|exited|terminated|resign|repair|reject|unavailable|failed|expired/i.test(status)) return "bad";
+  if (/leave|notice|pending|restricted|festival/i.test(status)) return "warn";
+  if (/assigned|preboard|national/i.test(status)) return "info";
+  return "ok";
+}
+
+export function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/* Loads a simple list for dropdowns; returns [{id, name}] (empty if API fails). */
+export function useOptions(endpoint) {
+  const [options, setOptions] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get(endpoint)
+      .then((res) => {
+        if (cancelled) return;
+        setOptions(
+          getArrayResponse(res).map((o) => ({
+            id: o.id ?? o.code ?? o.name,
+            name: o.name || o.title || o.label || String(o.id),
+          })),
+        );
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [endpoint]);
+  return options;
+}
+
+/* Download rows (array of arrays) as a CSV file. Guards against spreadsheet formula injection. */
+export function downloadCsv(filename, rows) {
+  const esc = (value) => {
+    let text = String(value ?? "");
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+  const csv = rows.map((row) => row.map(esc).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }

@@ -155,7 +155,7 @@ export function FormPanel({ title, subtitle, fields, initial = {}, submitLabel, 
     setMsg("");
     try {
       await onSubmit(v);
-      onClose();
+      if (onClose) onClose();
     } catch (x) {
       setMsg(getErrorMessage(x, "Could not save. Please try again."));
     } finally {
@@ -167,7 +167,7 @@ export function FormPanel({ title, subtitle, fields, initial = {}, submitLabel, 
     <aside className="admin-panel ap-side" aria-label={title}>
       <div className="ap-side-head">
         <div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>
-        <button type="button" className="ap-x" onClick={onClose} aria-label="Close panel"><Icon name="close" size={16} /></button>
+        {onClose && <button type="button" className="ap-x" onClick={onClose} aria-label="Close panel"><Icon name="close" size={16} /></button>}
       </div>
       <form onSubmit={submit} noValidate>
         <div className="ap-form-grid">
@@ -193,7 +193,7 @@ export function FormPanel({ title, subtitle, fields, initial = {}, submitLabel, 
         </div>
         {msg && <div role="alert" className="admin-form-error">{msg}</div>}
         <div className="ap-side-actions">
-          <button type="button" className="admin-secondary-button" onClick={onClose} disabled={busy}>Cancel</button>
+          {onClose && <button type="button" className="admin-secondary-button" onClick={onClose} disabled={busy}>Cancel</button>}
           <button type="submit" className="admin-primary-button" disabled={busy}>{busy ? "Saving…" : submitLabel}</button>
         </div>
       </form>
