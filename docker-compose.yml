@@ -1,18 +1,12 @@
 services:
   db:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5433:5432"
+    env_file:
+      - .env.production
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -20,10 +14,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6380:6379"
+    env_file:
+      - .env.production
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    volumes:
+      - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -32,38 +29,31 @@ services:
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile.production
     env_file:
-      - .env
+      - .env.production
     environment:
-      DB_HOST: db
-      DB_PORT: "5432"
-      REDIS_URL: redis://redis:6379/0
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend
-    volumes:
-      - ./backend:/app
+      DJANGO_SETTINGS_MODULE: config.production_settings
     ports:
-      - "8000:8000"
+      # Bind only to loopback; put TLS/reverse proxy in front of this port.
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: python manage.py runserver 0.0.0.0:8000
+    command: ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]
     restart: unless-stopped
 
   worker:
     build:
       context: ./backend
+      dockerfile: Dockerfile.production
     env_file:
-      - .env
+      - .env.production
     environment:
-      DB_HOST: db
-      DB_PORT: "5432"
-      REDIS_URL: redis://redis:6379/0
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend
-    volumes:
-      - ./backend:/app
-    command: celery -A config worker --loglevel=info
+      DJANGO_SETTINGS_MODULE: config.production_settings
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "--concurrency=2"]
     depends_on:
       db:
         condition: service_healthy
@@ -73,3 +63,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
