@@ -4,6 +4,13 @@
    the older styles in App.css / index.css.
    ========================================================== */
 
+.bp-auth,
+.bp-auth *,
+.bp-auth *::before,
+.bp-auth *::after {
+  box-sizing: border-box;
+}
+
 .bp-auth {
   --bp-green: #0b5d45;
   --bp-green-dark: #084a38;
@@ -44,12 +51,14 @@
 /* ---------------- left brand panel ---------------- */
 
 .bp-brand {
-  position: relative;
+  position: sticky;
+  top: 0;
+  align-self: start;
   isolation: isolate;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 100vh;
+  justify-content: flex-start;
+  height: 100vh;
   padding: 80px clamp(32px, 5vw, 80px) 48px;
   overflow: hidden;
   color: #ffffff;
@@ -67,10 +76,35 @@
   z-index: -1;
   background: linear-gradient(
     180deg,
-    rgba(4, 52, 40, 0.55) 0%,
-    rgba(4, 52, 40, 0.1) 55%,
-    rgba(4, 52, 40, 0.35) 100%
+    rgba(4, 52, 40, 0.5) 0%,
+    rgba(4, 52, 40, 0.1) 60%,
+    rgba(4, 52, 40, 0) 100%
   );
+}
+
+/* office + plant illustration at the bottom of the left panel */
+.bp-brand-art {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  max-height: 62%;
+  object-fit: cover;
+  object-position: left bottom;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 38%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 38%);
+}
+
+.bp-brand-top,
+.bp-brand-middle,
+.bp-brand-bottom {
+  position: relative;
+  z-index: 1;
 }
 
 .bp-logo {
@@ -95,7 +129,7 @@
 }
 
 .bp-brand-middle {
-  margin: 56px 0;
+  margin: 86px 0 0;
 }
 
 .bp-brand-middle h1 {
@@ -117,6 +151,7 @@
 }
 
 .bp-brand-bottom {
+  margin-top: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -143,7 +178,7 @@
   justify-content: center;
   min-width: 0;
   min-height: 100vh;
-  padding: 40px clamp(20px, 4vw, 72px);
+  padding: 28px clamp(20px, 4vw, 72px);
   background-color: #f4fbf8;
   background-size: cover;
   background-position: center;
@@ -160,7 +195,7 @@
 .bp-card {
   width: 100%;
   max-width: 640px;
-  padding: 40px clamp(24px, 3.4vw, 44px) 36px;
+  padding: 30px clamp(24px, 3.4vw, 44px) 26px;
   border: 1px solid rgba(207, 230, 220, 0.7);
   border-radius: 22px;
   background: var(--bp-card);
@@ -170,9 +205,9 @@
 .bp-card-badge {
   display: grid;
   place-items: center;
-  width: 112px;
-  height: 112px;
-  margin: 0 auto 14px;
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 10px;
   border-radius: 50%;
   background: #dcf5ea;
   color: #0b6a4c;
@@ -206,10 +241,10 @@
 }
 
 .bp-card-subtitle {
-  margin: 12px auto 28px;
+  margin: 8px auto 20px;
   max-width: 460px;
   color: var(--bp-sub);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.55;
   text-align: center;
 }
@@ -217,14 +252,14 @@
 /* ---------------- form ---------------- */
 
 .bp-field {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .bp-field label {
   display: block;
-  margin-bottom: 9px;
+  margin-bottom: 7px;
   color: var(--bp-ink);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -232,7 +267,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 58px;
+  height: 54px;
   padding: 0 16px;
   border: 1px solid var(--bp-border);
   border-radius: 12px;
@@ -300,8 +335,8 @@
   justify-content: center;
   gap: 10px;
   width: 100%;
-  min-height: 58px;
-  padding: 14px 20px;
+  min-height: 54px;
+  padding: 12px 20px;
   border: 1.5px solid var(--bp-green);
   border-radius: 12px;
   background: var(--bp-green);
@@ -376,7 +411,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin: 24px auto 0;
+  margin: 16px auto 0;
 }
 
 .bp-forgot {
@@ -460,8 +495,8 @@
 .bp-requirements {
   display: flex;
   gap: 14px;
-  margin: 4px 0 24px;
-  padding: 18px 20px;
+  margin: 2px 0 18px;
+  padding: 14px 18px;
   border-radius: 14px;
   background: var(--bp-green-soft);
 }
@@ -477,10 +512,10 @@
 }
 
 .bp-requirements-body h3 {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   color: var(--bp-green);
   font-family: "DM Sans", sans-serif;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -490,7 +525,7 @@
 
 .bp-requirements ul {
   display: grid;
-  gap: 7px;
+  gap: 5px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -501,7 +536,7 @@
   align-items: center;
   gap: 10px;
   color: var(--bp-muted);
-  font-size: 15px;
+  font-size: 14.5px;
   transition: color 160ms ease;
 }
 
