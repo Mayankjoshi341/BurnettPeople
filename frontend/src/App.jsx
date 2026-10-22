@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
   useNavigate,
+  useLocation,
 } from "react-router-dom";
 
 import TypingHeadline from "./TypingHeadline";
@@ -18,23 +19,17 @@ import EmployeeProfile from "./EmployeeProfile";
 import EmployeeActivation from "./EmployeeActivation";
 import apiClient from "./api/client";
 import PasswordResetPage from "./pages/PasswordResetPage";
+import NotFoundPage from "./pages/NotFoundPage";
+import ForbiddenPage from "./pages/ForbiddenPage";
+import ServerErrorPage from "./pages/ServerErrorPage";
+import RouteErrorBoundary from "./components/RouteErrorBoundary";
+import { ROLE_HOME, homeForUser } from "./config/roles";
 
 import "./App.css";
 import "./auth.css";
 import burnettLogo from "./assets/burnettpeople-logo.png";
 import loginDarkTeal from "./assets/login-dark-teal.png";
 import loginSoftMint from "./assets/login-soft-mint.png";
-
-const ROLE_HOME = {
-  ADMIN: "/admin",
-  HR: "/hr",
-  MANAGER: "/manager",
-  EMPLOYEE: "/employee",
-};
-
-function homeForUser(user) {
-  return ROLE_HOME[user?.role] || "/";
-}
 
 function ThemeToggle({ theme, onToggle }) {
   const dark = theme === "dark";
@@ -280,10 +275,13 @@ function LoginPage({ onLogin }) {
   );
 }
 
+/* Not signed in  -> back to login.
+   Signed in, but the wrong role -> the 403 "Access Forbidden" page
+   (it used to silently redirect to the user's own dashboard). */
 function RequireRole({ user, roles, children }) {
   if (!user) return <Navigate to="/" replace />;
   if (!roles.includes(user.role)) {
-    return <Navigate to={homeForUser(user)} replace />;
+    return <ForbiddenPage user={user} />;
   }
   return children;
 }
@@ -382,11 +380,28 @@ function AppRoutes({ user, onLogin, onLogout }) {
         }
       />
 
-      <Route
-        path="*"
-        element={<Navigate to={user ? home : "/"} replace />}
-      />
+      {/* Error pages (also reachable directly while you are designing/testing them) */}
+      <Route path="/forbidden" element={<ForbiddenPage user={user} />} />
+      <Route path="/server-error" element={<ServerErrorPage user={user} />} />
+
+      {/* Any unknown address -> 404 page (it used to redirect silently) */}
+      <Route path="*" element={<NotFoundPage user={user} />} />
     </Routes>
+  );
+}
+
+/* Wraps the routes so a crash inside any page shows the 500 page instead of a blank screen.
+   Navigating anywhere resets it (resetKey changes on every navigation). */
+function GuardedRoutes(props) {
+  const location = useLocation();
+
+  return (
+    <RouteErrorBoundary
+      resetKey={location.key}
+      fallback={(reset) => <ServerErrorPage user={props.user} onReset={reset} />}
+    >
+      <AppRoutes {...props} />
+    </RouteErrorBoundary>
   );
 }
 
@@ -475,7 +490,7 @@ function App() {
   return (
     <BrowserRouter>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <AppRoutes user={user} onLogin={handleLogin} onLogout={handleLogout} />
+      <GuardedRoutes user={user} onLogin={handleLogin} onLogout={handleLogout} />
     </BrowserRouter>
   );
 }
