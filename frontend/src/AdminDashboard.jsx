@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-
+import StatusUpdates from "./StatusUpdates";
 import apiClient from "./api/client";
 import { Icon } from "./DashboardIcons";
 import AdminAssets from "./AdminAssets";
@@ -41,6 +41,7 @@ const NAV = [
   { id: "reports", label: "Reports", icon: "file" },
   { id: "audit", label: "Audit Logs", icon: "lock" },
   { id: "notifications", label: "Notifications", icon: "bell", badge: true },
+  { id: "status-updates", label: "Work Status Updates", icon: "file" },
   // { id: "settings", label: "Settings", icon: "gear" },
 ];
 
@@ -60,6 +61,10 @@ const PAGE_META = {
   audit: ["Audit Logs", "Track all activities and changes happening in the system. Monitor user actions, data changes, and security events."],
   notifications: ["Notifications", "Everything that needs your attention."],
   settings: ["Settings", "Company preferences and configuration."],
+  "status-updates": [
+  "Work Status Updates",
+  "Record completed work, current focus, testing, tech stack and blockers.",
+],
 };
 
 /* ------------------------------------------------------------------
@@ -535,6 +540,7 @@ export default function AdminDashboard({ user, onLogout }) {
       case "assets": return <AdminAssets />;
       case "reports": return <AdminReports />;
       case "audit": return <AdminAuditLogs />;
+      case "status-updates": return <StatusUpdates user={user} />;
       default: return <ComingSoon title={title} />;
     }
   }
