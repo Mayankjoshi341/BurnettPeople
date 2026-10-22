@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import StatusUpdates from "./StatusUpdates";
 import { roleLabel, userDisplayName, userInitials } from "./auth/userDisplay";
 import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
@@ -28,6 +28,7 @@ const NAV = [
   { id: "reports", label: "Reports", icon: "file" },
   { id: "profile", label: "My Profile", icon: "user" },
   { id: "notifications", label: "Notifications", icon: "bell" },
+  { id: "status-updates", label: "Work Status Updates", icon: "file" },
 ];
 
 const PAGE_META = {
@@ -42,6 +43,10 @@ const PAGE_META = {
   reports: ["Team Reports", "View your team's attendance, leave and assets."],
   profile: ["My Profile", "View and manage your personal, work and managerial information."],
   notifications: ["Notifications", "Updates about your team."],
+  "status-updates": [
+  "Work Status Updates",
+  "Record completed work, current focus, testing, tech stack and blockers.",
+],
 };
 
 function Overview({ data, go, onDecide, name }) {
@@ -189,6 +194,7 @@ export default function ManagerDashboard({ user, onLogout }) {
       case "reports": return <ReportsPage data={data} />;
       case "profile": return <ProfilePage user={user} name={name} initials={userInitials(user)} roleText={roleLabel(user?.role)} data={data} />;
       case "notifications": return <NotificationsPage data={data} />;
+      case "status-updates": return <StatusUpdates user={user} />;
       default: return <Overview data={data} go={setSection} onDecide={decideLeave} name={name} />;
     }
   }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-
+import StatusUpdates from "./StatusUpdates";
 import apiClient from "./api/client";
 import { userDisplayName, userInitials, roleLabel } from "./auth/userDisplay";
 import DashboardShell from "./DashboardShell";
@@ -33,6 +33,7 @@ const NAV = [
   { id: "requests", label: "My Requests", icon: "file" },
   { id: "profile", label: "My Profile", icon: "user" },
   { id: "notifications", label: "Notifications", icon: "bell", badge: true },
+  { id: "status-updates", label: "Work Status Updates", icon: "file" },
 ];
 
 const PAGE_META = {
@@ -1046,6 +1047,7 @@ function EmployeeDashboard({ user, onLogout }) {
       case "requests": return renderRequests();
       case "profile": return renderProfile();
       case "notifications": return renderNotifications();
+      case "status-updates": return <StatusUpdates user={user} />;
       default: return renderOverview();
     }
   }

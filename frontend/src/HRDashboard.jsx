@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-
+import StatusUpdates from "./StatusUpdates";
 import { userDisplayName } from "./auth/userDisplay";
 import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
@@ -36,6 +36,7 @@ const NAV = [
   { id: "settings", label: "HR Settings", icon: "gear" },
   { id: "notifications", label: "Notifications", icon: "bell", badge: true },
   { id: "profile", label: "My Profile", icon: "user" },
+  { id: "status-updates", label: "Work Status Updates", icon: "file" },
 ];
 
 const PAGE_META = {
@@ -51,6 +52,9 @@ const PAGE_META = {
   settings: ["HR Settings", "Manage company policies, time-off rules, assets, schedules and other HR configurations."],
   notifications: ["Notifications", "Everything that needs your attention."],
   profile: ["My Profile", "View and manage your personal, work and HR information."],
+  "status-updates": [
+  "Work Status Updates",
+  "Record completed work, current focus, testing, tech stack and blockers.",],
 };
 
 /* ------------------------------------------------------------------
@@ -408,6 +412,7 @@ function HRDashboard({ user, onLogout }) {
         return <HRProfile user={user} />;
       case "leave":
         return <ComingSoon title="Leave Management" text="Leave request review is not connected to an operational API yet." />;
+      case "status-updates": return <StatusUpdates user={user} />;
       default:
         return <ComingSoon title={title} />;
     }
