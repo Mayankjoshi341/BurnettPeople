@@ -2,6 +2,8 @@ import burnettLogo from "../assets/burnettpeople-logo.png";
 // Left panel: office / plant artwork on top of the dark teal gradient
 import officeArt from "../assets/login-office.png";
 import panelImage from "../assets/login-dark-teal.png";
+// Left panel picture (the office / plant artwork): src/assets/login-office.png
+import panelImage from "../assets/login-office.png";
 import softMint from "../assets/login-soft-mint.png";
 
 const FEATURES = [

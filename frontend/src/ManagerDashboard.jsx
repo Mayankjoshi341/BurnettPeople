@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { roleLabel, userDisplayName, userInitials } from "./auth/userDisplay";
 import DashboardShell from "./DashboardShell";
@@ -13,6 +13,7 @@ import {
   ProfilePage, ReportsPage, SchedulePage, TeamPage,
 } from "./ManagerPages";
 import MyPeople from "./MyPeople";
+import { decideLeaveRequest, useLeaveData } from "./features/leave/leaveApi";
 import "./AdminPages.css";
 import "./ManagerDashboard.css";
 
@@ -171,10 +172,19 @@ function Overview({ data, go, onDecide, name }) {
 
 export default function ManagerDashboard({ user, onLogout }) {
   const name = userDisplayName(user);
-  const { data, hasData, loading, error, decideLeave } = useManagerData();
+  const { data: teamData, hasData, loading, error } = useManagerData();
   const [section, setSection] = useState("overview");
 
-  const pendingCount = (data.leaves || []).filter((l) => l.status === "Pending").length;
+  /* Leave requests always come from the leave API (never from sample data). */
+  const leave = useLeaveData();
+  const data = useMemo(() => ({ ...teamData, leaves: leave.requests }), [teamData, leave.requests]);
+  const decideLeave = async (id, action) => {
+    await decideLeaveRequest(id, action);
+    await leave.reload();
+  };
+  const isLeaveSection = section === "leave" || section === "approvals";
+
+  const pendingCount = leave.requests.filter((l) => l.status === "Pending").length;
   const [title, subtitle] = PAGE_META[section];
 
   function renderPage() {
@@ -208,12 +218,16 @@ export default function ManagerDashboard({ user, onLogout }) {
       homePath="/manager"
       footerLabel="Manager workspace"
     >
-      {error && <div role="alert" className="admin-form-error">{error}</div>}
-      {loading && <p className="admin-note">Loading your team…</p>}
-      {!SHOW_DEMO_DATA && !hasData && !loading && !error && (
+      {error && !isLeaveSection && <div role="alert" className="admin-form-error">{error}</div>}
+      {leave.errors.requests && (isLeaveSection || section === "overview") && (
+        <div role="alert" className="admin-form-error">{leave.errors.requests}</div>
+      )}
+      {loading && !isLeaveSection && <p className="admin-note">Loading your team…</p>}
+      {isLeaveSection && leave.loading && <p className="admin-note">Loading leave requests…</p>}
+      {!SHOW_DEMO_DATA && !hasData && !loading && !error && !isLeaveSection && (
         <NotConnected title="Team data is not connected yet." text="Team, attendance and leave data will appear here once the manager API is available." />
       )}
-      {(hasData || section === "profile" || section === "people") && renderPage()}
+      {(hasData || section === "profile" || section === "people" || isLeaveSection) && renderPage()}
     </DashboardShell>
   );
 }
