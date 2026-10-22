@@ -7,6 +7,7 @@ import MyPeople from "./MyPeople";
 import HREmployeeManagement from "./HREmployeeManagement";
 import HREmployeeOnboarding from "./HREmployeeOnboarding";
 import HRAssets from "./HRAssets";
+import HRLeave from "./features/leave/HRLeave";
 import HRSettings from "./HRSettings";
 import HRProfile from "./HRProfile";
 import HRAttendance from "./HRAttendance";
@@ -407,7 +408,7 @@ function HRDashboard({ user, onLogout }) {
       case "profile":
         return <HRProfile user={user} />;
       case "leave":
-        return <ComingSoon title="Leave Management" text="Leave request review is not connected to an operational API yet." />;
+        return <HRLeave />;
       default:
         return <ComingSoon title={title} />;
     }

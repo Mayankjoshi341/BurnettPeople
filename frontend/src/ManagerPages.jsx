@@ -127,7 +127,7 @@ export function LeaveRows({ rows, busy = "", onDecide }) {
       {rows.map((l, i) => (
         <div className="mgr-leave" key={l.id}>
           <div className="ap-person"><Av name={l.name} i={i} size={34} /><span><strong>{l.name}</strong><small>{l.code} · {l.department}</small></span></div>
-          <span className="mgr-leave-type"><strong>{l.type}</strong><small>{l.dates}</small></span>
+          <span className="mgr-leave-type"><strong>{l.type}</strong><small>{l.dates}{l.days ? ` · ${l.days}` : ""}</small>{l.reason && <small className="mgr-leave-reason">{l.reason}</small>}</span>
           <Pill>{l.status}</Pill>
           {l.status === "Pending" ? (
             <span className="mgr-decide">
