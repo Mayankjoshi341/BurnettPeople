@@ -4,8 +4,12 @@ import apiClient from "./api/client";
 import { userDisplayName, userInitials, roleLabel } from "./auth/userDisplay";
 import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
-import { StatCard, NotConnected, MonthCalendar } from "./DashboardParts";
+import { StatCard, MonthCalendar } from "./DashboardParts";
 import MyPeople from "./MyPeople";
+import { useLeaveData, leaveMarks, upcomingLeave, dayLabel } from "./features/leave/leaveApi";
+import { LeaveApplyForm, LeaveBalanceCards, LeaveHistoryTable, LeaveStatusBadge } from "./features/leave/LeaveComponents";
+import { useMyAssets } from "./features/assets/assetApi";
+import { MyAssetsPage, MyAssetsPreview } from "./features/assets/EmployeeAssets";
 import {
   SHOW_DEMO_DATA,
   AVATAR_TONES,
@@ -81,27 +85,6 @@ const DEMO_WEEK = [
   ["Fri", "9:00 AM – 6:00 PM"],
   ["Sat", "Off"],
 ];
-const DEMO_BALANCES = [
-  ["calendar", "green", "Annual Leave", 12, 4],
-  ["heart", "red", "Sick Leave", 8, 1],
-  ["calendar", "amber", "Casual Leave", 3, 1],
-  ["plane", "green", "Compensatory Leave", 5, 0],
-];
-const DEMO_LEAVES = [
-  ["Annual Leave", "20 Oct – 22 Oct 2026", "3 days", "Family trip", "Approved"],
-  ["Sick Leave", "10 Oct 2026", "1 day", "Fever", "Approved"],
-  ["Casual Leave", "05 Oct 2026", "1 day", "Personal work", "Pending"],
-  ["Annual Leave", "12 Sep – 13 Sep 2026", "2 days", "Out of station", "Rejected"],
-];
-const DEMO_UPCOMING = [
-  ["Annual Leave", "20 Oct – 22 Oct 2026", "Pending"],
-  ["Casual Leave", "10 Nov 2026", "Approved"],
-  ["Sick Leave", "05 Dec 2026", "Pending"],
-];
-const DEMO_ASSETS = [
-  ["laptop", "MacBook Air M2", "LAP-001 · 01 Oct 2025", "Assigned"],
-  ["laptop", "Wireless Mouse", "ACC-014 · 01 Oct 2025", "Assigned"],
-];
 const STATUS_CLASS = {
   Approved: "status-completed",
   Pending: "status-pending",
@@ -140,6 +123,9 @@ function EmployeeDashboard({ user, onLogout }) {
 
   const [section, setSection] = useState("overview");
   const [now, setNow] = useState(() => new Date());
+
+  const leave = useLeaveData({ balances: true, types: true });
+  const myAssets = useMyAssets();
 
   const [attendance, setAttendance] = useState(null);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
@@ -390,6 +376,12 @@ function EmployeeDashboard({ user, onLogout }) {
     return marks;
   }, [attendanceHistory, attendance]);
 
+  const leaveRemaining = leave.balances.length
+    ? leave.balances.reduce((sum, b) => sum + (b.remaining ?? 0), 0)
+    : null;
+  const upcoming = useMemo(() => upcomingLeave(leave.requests).slice(0, 3), [leave.requests]);
+  const calendarLeaveMarks = useMemo(() => leaveMarks(leave.requests), [leave.requests]);
+
   const pendingCount = myExceptions.filter((r) => /pending/i.test(getExceptionStatus(r))).length;
   const unread = SHOW_DEMO_DATA ? Math.max(pendingCount, 3) : pendingCount;
 
@@ -616,8 +608,8 @@ function EmployeeDashboard({ user, onLogout }) {
             <span className="emp-sum-icon orange"><Icon name="plane" size={24} /></span>
             <span className="emp-sum-body">
               <small>Leave Balance</small>
-              <strong>{SHOW_DEMO_DATA ? "12 Days" : "—"}</strong>
-              <em>{SHOW_DEMO_DATA ? "Annual Leave" : "Not connected yet"}</em>
+              <strong>{leave.loading ? "Loading…" : leaveRemaining === null ? "—" : dayLabel(leaveRemaining)}</strong>
+              <em>{leave.errors.balances ? "Unavailable" : leaveRemaining === null ? "No balance set up" : "Remaining across leave types"}</em>
             </span>
             <Icon name="arrow" size={15} />
           </button>
@@ -685,16 +677,20 @@ function EmployeeDashboard({ user, onLogout }) {
                   <div><h2 id="ul-title">Upcoming Leave</h2></div>
                   <button type="button" className="admin-link-button" onClick={() => setSection("leave")}>View all <Icon name="arrow" size={13} /></button>
                 </div>
-                {SHOW_DEMO_DATA ? (
-                  DEMO_UPCOMING.map(([type, dates, status]) => (
-                    <div className="emp-info-row" key={type + dates}>
+                {leave.loading ? (
+                  <p className="admin-note">Loading your leave…</p>
+                ) : leave.errors.requests ? (
+                  <div className="admin-form-error" role="alert">{leave.errors.requests}</div>
+                ) : upcoming.length === 0 ? (
+                  <p className="admin-note">You have no upcoming leave.</p>
+                ) : (
+                  upcoming.map((r) => (
+                    <div className="emp-info-row" key={r.id}>
                       <span className="emp-info-icon tone-orange"><Icon name="plane" size={18} /></span>
-                      <span><strong>{type}</strong><small>{dates}</small></span>
-                      <span className={`admin-status ${statusClassFor(status)} emp-right`}>{status}</span>
+                      <span><strong>{r.type}</strong><small>{r.dates}</small></span>
+                      <span className="emp-right"><LeaveStatusBadge request={r} /></span>
                     </div>
                   ))
-                ) : (
-                  <p className="admin-note">Upcoming leave will appear here once the leave API is connected.</p>
                 )}
               </section>
 
@@ -753,17 +749,7 @@ function EmployeeDashboard({ user, onLogout }) {
                 <div><h2 id="ma-title">My Assets</h2></div>
                 <button type="button" className="admin-link-button" onClick={() => setSection("assets")}>View all <Icon name="arrow" size={13} /></button>
               </div>
-              {SHOW_DEMO_DATA ? (
-                DEMO_ASSETS.map(([icon, label, meta]) => (
-                  <div className="emp-info-row" key={label}>
-                    <span className="emp-info-icon tone-blue"><Icon name={icon} size={18} /></span>
-                    <span><strong>{label}</strong><small>{meta}</small></span>
-                    <span className="emp-right emp-chevron"><Icon name="arrow" size={14} /></span>
-                  </div>
-                ))
-              ) : (
-                <p className="admin-note">Assigned devices will appear here once the assets API is connected.</p>
-              )}
+              <MyAssetsPreview assets={myAssets} />
             </section>
 
             <section className="admin-panel" aria-labelledby="qa-title">
@@ -871,84 +857,25 @@ function EmployeeDashboard({ user, onLogout }) {
   function renderLeave() {
     return (
       <>
-        <NotConnected
-          title="Leave requests are not connected yet."
-          text={SHOW_DEMO_DATA
-            ? "The numbers below are sample data for the design. Real balances and the apply form need a leave API."
-            : "Your leave balance and requests will appear here once the backend provides a leave API."}
-        />
-        {SHOW_DEMO_DATA && (
-          <>
-            <section className="admin-summary-grid" aria-label="Leave balance">
-              {DEMO_BALANCES.map(([icon, tone, label, total, used]) => (
-                <div className="admin-stat-card" key={label}>
-                  <span className={`admin-stat-icon ${tone}`}><Icon name={icon} size={24} /></span>
-                  <span className="admin-stat-body">
-                    <h3>{total} Days</h3>
-                    <p>{label}</p>
-                    <small className="up">{total - used} remaining</small>
-                    <span className="emp-progress"><i style={{ width: `${(used / total) * 100}%` }} /></span>
-                    <small>{used} / {total} used</small>
-                  </span>
-                </div>
-              ))}
-            </section>
-            <div className="emp-two">
-              <section className="admin-panel"><MonthCalendar marks={{}} /></section>
-              <section className="admin-panel" aria-labelledby="apply-title">
-                <div className="admin-panel-heading"><div><h2 id="apply-title">Apply for Leave</h2><p>Submit a new leave request</p></div></div>
-                <div className="admin-form-field"><label htmlFor="lv-type">Leave type</label>
-                  <select id="lv-type" disabled><option>Annual Leave</option></select></div>
-                <div className="emp-field-row">
-                  <div className="admin-form-field"><label htmlFor="lv-start">Start date</label><input id="lv-start" type="date" disabled /></div>
-                  <div className="admin-form-field"><label htmlFor="lv-end">End date</label><input id="lv-end" type="date" disabled /></div>
-                </div>
-                <div className="admin-form-field"><label htmlFor="lv-reason">Reason</label><textarea id="lv-reason" rows={3} placeholder="Enter reason for leave (optional)…" disabled /></div>
-                <button type="button" className="admin-primary-button" disabled>Submit Leave Request</button>
-              </section>
-            </div>
-            <section className="admin-panel" aria-labelledby="myl-title">
-              <div className="admin-panel-heading"><div><h2 id="myl-title">My Leave Requests</h2><p>View and manage your leave requests</p></div></div>
-              <div className="admin-table-wrap">
-                <table className="admin-table">
-                  <thead><tr><th>TYPE</th><th>DATES</th><th>DURATION</th><th>REASON</th><th>STATUS</th></tr></thead>
-                  <tbody>
-                    {DEMO_LEAVES.map(([type, dates, days, reason, status]) => (
-                      <tr key={dates}>
-                        <td><strong>{type}</strong></td><td>{dates}</td><td>{days}</td><td>{reason}</td>
-                        <td><span className={`admin-status ${statusClassFor(status)}`}>{status}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </>
-        )}
+        {leave.errors.requests && <div className="admin-form-error" role="alert">{leave.errors.requests}</div>}
+        <LeaveBalanceCards balances={leave.balances} loading={leave.loading} error={leave.errors.balances} />
+        <div className="emp-two">
+          <section className="admin-panel"><MonthCalendar marks={calendarLeaveMarks} /></section>
+          <LeaveApplyForm
+            types={leave.types}
+            balances={leave.balances}
+            requests={leave.requests}
+            typesError={leave.errors.types && leave.types.length === 0 && leave.balances.length === 0 ? leave.errors.types : ""}
+            onSubmitted={leave.reload}
+          />
+        </div>
+        <LeaveHistoryTable requests={leave.requests} loading={leave.loading} error="" />
       </>
     );
   }
 
   function renderAssets() {
-    return (
-      <section className="admin-panel">
-        <div className="admin-panel-heading"><div><h2>My Assets</h2><p>Devices and equipment assigned to you</p></div></div>
-        {SHOW_DEMO_DATA ? (
-          <>
-            <NotConnected title="Assets are not connected yet." text="These items are sample data for the design." />
-            {DEMO_ASSETS.map(([icon, label, meta, status]) => (
-              <div className="emp-info-row" key={label}>
-                <span className="emp-info-icon"><Icon name={icon} size={18} /></span>
-                <span><strong>{label}</strong><small>{meta}</small></span>
-                <span className={`admin-status ${statusClassFor(status)} emp-right`}>{status}</span>
-              </div>
-            ))}
-          </>
-        ) : (
-          <p className="admin-note">Assigned devices will appear here once the assets API is connected.</p>
-        )}
-      </section>
-    );
+    return <MyAssetsPage assets={myAssets} />;
   }
 
   function renderRequests() {

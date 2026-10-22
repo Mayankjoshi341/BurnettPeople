@@ -1,6 +1,6 @@
 import burnettLogo from "../assets/burnettpeople-logo.png";
 // Left panel picture (the office / plant artwork): src/assets/login-office.png
-import panelImage from "../assets/login-dark-teal.png";
+import panelImage from "../assets/login-office.png";
 import softMint from "../assets/login-soft-mint.png";
 
 /* Two-column shell used by Set Up Password, Reset Password, Success and the error pages.

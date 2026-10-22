@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import apiClient from "./api/client";
+import apiClient from "./api/client.js";
 
 /* ------------------------------------------------------------------
    ONE place for the settings shared by every dashboard

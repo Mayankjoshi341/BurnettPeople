@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import apiClient from "./api/client";
 import { Icon } from "./DashboardIcons";
-import { StatCard, NotConnected, Pager } from "./DashboardParts";
+import { StatCard, Pager } from "./DashboardParts";
 import {
   AVATAR_TONES,
-  SHOW_DEMO_DATA,
-  callApi,
   getArrayResponse,
   getErrorMessage,
   initialsOf,
@@ -13,52 +11,23 @@ import {
   todayISO,
   useEmployees,
 } from "./dashboardUtils";
+import {
+  ASSET_ENDPOINTS,
+  RETURN_CONDITIONS,
+  assignPayload,
+  fieldErrorsOf,
+  formatAssetDate,
+  normalizeAsset,
+  registerPayload,
+  returnPayload,
+  useAssetHistory,
+} from "./features/assets/assetApi";
 import "./HRPages.css";
 
-/* Set this to your assets list endpoint when the backend is ready, e.g. "/assets/devices/".
-   While it is null, sample devices are shown (when SHOW_DEMO_DATA is true). */
-const ASSETS_ENDPOINT = null;
-
-const DEMO_DEVICES = [
-  ["MacBook Pro 14\"", "Laptop", "Apple", "C02XK3Q7L9", "Indore Office", "Available", "", "2024-01-12"],
-  ["Dell XPS 13", "Laptop", "Dell", "DELL9987A1", "Indore Office", "Assigned", "Rohan Thakur", "2024-02-05"],
-  ["iPhone 15", "Mobile", "Apple", "F4G9H2L3K1", "Bangalore Office", "Available", "", "2024-03-18"],
-  ["Lenovo ThinkPad", "Laptop", "Lenovo", "LEN567BPD4", "Bangalore Office", "In Repair", "", "2024-01-22"],
-  ["Samsung Galaxy S24", "Mobile", "Samsung", "SAM9L2K8P1", "Indore Office", "Assigned", "Neha Gupta", "2024-04-11"],
-  ["iPad Air", "Tablet", "Apple", "IPD9K3L2M4", "Delhi Office", "Available", "", "2024-05-01"],
-  ["HP ProBook 450", "Laptop", "HP", "HP45K7L9M2", "Indore Office", "Assigned", "Vikram Kapoor", "2024-03-10"],
-  ["Dell Monitor 24\"", "Monitor", "Dell", "DELL24MK81", "Bangalore Office", "Available", "", "2024-02-15"],
-  ["Logitech Keyboard", "Accessory", "Logitech", "LOG9K2L5P4", "Indore Office", "Available", "", "2024-06-02"],
-  ["Mac Mini", "Desktop", "Apple", "MM9L3K1P0", "Delhi Office", "Assigned", "Priya Nair", "2024-04-20"],
-].map(([name, type, brand, serial, location, status, assignedTo, purchased], i) => ({
-  id: `demo-${i}`, name, type, brand, serial, location, status, assignedTo, purchased, demo: true,
-}));
-
-const DEMO_HISTORY = [
-  ["Returned by Neha Gupta", "10 Oct 2026, 05:30 PM", "Device returned in good condition.", "Returned"],
-  ["Assigned to Neha Gupta", "12 Jan 2025, 10:00 AM", "Initial assignment.", "Assigned"],
-  ["Device added to inventory", "12 Jan 2024, 09:15 AM", "Added by Admin", "Created"],
-];
-
 const TYPE_ICON = { Laptop: "laptop", Desktop: "laptop", Monitor: "laptop", Mobile: "bell", Tablet: "laptop", Accessory: "gear" };
+const DEVICE_TYPES = ["Laptop", "Desktop", "Monitor", "Mobile", "Tablet", "Accessory"];
 
-function normalizeDevice(raw, i) {
-  const assigned = raw.assigned_to_name || raw.assigned_to?.name || raw.employee_name || "";
-  return {
-    id: raw.id ?? i,
-    name: raw.name || raw.device_name || "—",
-    type: raw.device_type || raw.type || "—",
-    brand: raw.brand || "—",
-    serial: raw.serial_number || raw.serial || "—",
-    location: raw.location_name || raw.location || "—",
-    status: raw.status_label || raw.status || "—",
-    assignedTo: assigned,
-    purchased: raw.purchase_date || "",
-  };
-}
-
-const fmt = (iso) =>
-  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+const fmt = formatAssetDate;
 
 function Pill({ value }) {
   return <span className={`hrp-pill ${statusTone(value)}`}>{value}</span>;
@@ -78,16 +47,14 @@ function AssignDrawer({ device, employees, onClose, onAssigned }) {
     setMsg("");
     setErr("");
     if (!employee) { setErr("Please select an employee."); return; }
-    if (device.demo || !ASSETS_ENDPOINT) { setErr("This is sample data. Set ASSETS_ENDPOINT in HRAssets.jsx to save assignments."); return; }
+    if (!date) { setErr("Please choose the assignment date."); return; }
+    if (ret && ret < date) { setErr("The expected return date cannot be before the assignment date."); return; }
     setBusy(true);
     try {
-      await callApi("post", `${ASSETS_ENDPOINT}${device.id}/assign/`, {
-        employee: Number(employee),
-        assigned_date: date,
-        expected_return_date: ret || null,
-        location,
-        notes,
-      });
+      await apiClient.post(
+        ASSET_ENDPOINTS.assign(device.id),
+        assignPayload({ employee, date, expectedReturn: ret, location, notes }),
+      );
       setMsg("Device assigned.");
       onAssigned();
     } catch (e) {
@@ -117,7 +84,7 @@ function AssignDrawer({ device, employees, onClose, onAssigned }) {
         <label className="hrp-label" htmlFor="as-emp">Select Employee *</label>
         <select id="as-emp" value={employee} onChange={(e) => setEmployee(e.target.value)}>
           <option value="">Search employee by name or ID…</option>
-          {employees.map((e) => <option key={e.id} value={e.id}>{e.name} ({e.code})</option>)}
+          {employees.filter((e) => e.status === "ACTIVE").map((e) => <option key={e.id} value={e.id}>{e.name} ({e.code})</option>)}
         </select>
 
         <label className="hrp-label" htmlFor="as-date">Assignment Date *</label>
@@ -141,10 +108,179 @@ function AssignDrawer({ device, employees, onClose, onAssigned }) {
   );
 }
 
+function FieldError({ message }) {
+  return message ? <span className="admin-field-error" role="alert">{message}</span> : null;
+}
+
+const EMPTY_DEVICE = { name: "", type: "Laptop", brand: "", model: "", serial: "", tag: "", location: "", purchased: "", notes: "" };
+
+function RegisterDrawer({ onClose, onRegistered }) {
+  const [v, setV] = useState(EMPTY_DEVICE);
+  const [errors, setErrors] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  const set = (key, value) => {
+    setV((p) => ({ ...p, [key]: value }));
+    setErrors((p) => ({ ...p, [key]: undefined }));
+  };
+
+  async function submit() {
+    setMsg("");
+    setErr("");
+    const required = { name: "Device name", brand: "Brand", model: "Model", serial: "Serial number", tag: "Asset tag" };
+    const found = {};
+    Object.entries(required).forEach(([key, label]) => {
+      if (!v[key].trim()) found[key] = `${label} is required.`;
+    });
+    setErrors(found);
+    if (Object.keys(found).length) return;
+
+    setBusy(true);
+    try {
+      await apiClient.post(ASSET_ENDPOINTS.assets, registerPayload(v));
+      setMsg("Device registered.");
+      onRegistered();
+    } catch (e) {
+      // Server field names -> our form keys (serial_number -> serial, asset_tag -> tag, ...)
+      const server = fieldErrorsOf(e);
+      setErrors({
+        name: server.name, brand: server.brand, model: server.model, serial: server.serial_number,
+        tag: server.asset_tag, location: server.location, purchased: server.purchase_date, type: server.asset_type,
+      });
+      setErr(getErrorMessage(e, "Could not register the device."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <aside className="hrp-side">
+      <div className="hrp-card">
+        <div className="hrp-card-head">
+          <h3>Register New Device</h3>
+          <button type="button" className="hrp-x static" onClick={onClose} aria-label="Close"><Icon name="close" size={16} /></button>
+        </div>
+
+        <label className="hrp-label" htmlFor="rg-name">Device Name *</label>
+        <input id="rg-name" value={v.name} onChange={(e) => set("name", e.target.value)} placeholder='e.g. MacBook Pro 14"' aria-invalid={Boolean(errors.name)} />
+        <FieldError message={errors.name} />
+
+        <label className="hrp-label" htmlFor="rg-type">Device Type *</label>
+        <select id="rg-type" value={v.type} onChange={(e) => set("type", e.target.value)}>
+          {DEVICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+
+        <label className="hrp-label" htmlFor="rg-brand">Brand *</label>
+        <input id="rg-brand" value={v.brand} onChange={(e) => set("brand", e.target.value)} placeholder="e.g. Apple" aria-invalid={Boolean(errors.brand)} />
+        <FieldError message={errors.brand} />
+
+        <label className="hrp-label" htmlFor="rg-model">Model *</label>
+        <input id="rg-model" value={v.model} onChange={(e) => set("model", e.target.value)} placeholder="e.g. MacBook Pro 14-inch" aria-invalid={Boolean(errors.model)} />
+        <FieldError message={errors.model} />
+
+        <label className="hrp-label" htmlFor="rg-serial">Serial Number *</label>
+        <input id="rg-serial" value={v.serial} onChange={(e) => set("serial", e.target.value)} placeholder="e.g. C02XK3Q7L9" aria-invalid={Boolean(errors.serial)} />
+        <FieldError message={errors.serial} />
+
+        <label className="hrp-label" htmlFor="rg-tag">Asset Tag *</label>
+        <input id="rg-tag" value={v.tag} onChange={(e) => set("tag", e.target.value)} placeholder="e.g. BP-2026-001" aria-invalid={Boolean(errors.tag)} />
+        <FieldError message={errors.tag} />
+
+        <label className="hrp-label" htmlFor="rg-date">Purchase Date</label>
+        <input id="rg-date" type="date" value={v.purchased} max={todayISO()} onChange={(e) => set("purchased", e.target.value)} />
+        <FieldError message={errors.purchased} />
+
+        <label className="hrp-label" htmlFor="rg-loc">Location</label>
+        <input id="rg-loc" value={v.location} onChange={(e) => set("location", e.target.value)} placeholder="e.g. Indore Office" />
+        <FieldError message={errors.location} />
+
+        <label className="hrp-label" htmlFor="rg-notes">Notes</label>
+        <textarea id="rg-notes" rows={3} maxLength={200} value={v.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Add any notes about this device… (optional)" />
+        <small className="hrp-count">{v.notes.length}/200</small>
+
+        {msg && <p className="admin-form-success" role="status">{msg}</p>}
+        {err && <p className="admin-form-error" role="alert">{err}</p>}
+        <div className="admin-modal-actions">
+          <button type="button" className="admin-secondary-button" onClick={onClose}>Cancel</button>
+          <button type="button" className="admin-primary-button" onClick={submit} disabled={busy}>{busy ? "Registering…" : "Register Device"}</button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function ReturnDrawer({ device, assignment, loading, onClose, onReturned }) {
+  const [date, setDate] = useState(todayISO());
+  const [condition, setCondition] = useState("Good");
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  async function submit() {
+    setMsg("");
+    setErr("");
+    if (!assignment) { setErr("No active assignment was found for this device."); return; }
+    if (!date) { setErr("Please choose the return date."); return; }
+    if (assignment.assignedDate && date < assignment.assignedDate) {
+      setErr("The return date cannot be before the assignment date.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await apiClient.post(ASSET_ENDPOINTS.returnAsset(assignment.id), returnPayload({ date, condition, notes: notes.trim() }));
+      setMsg("Device returned.");
+      onReturned();
+    } catch (e) {
+      setErr(getErrorMessage(e, "Could not record the return."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <aside className="hrp-side">
+      <div className="hrp-card">
+        <div className="hrp-card-head">
+          <h3>Return Device</h3>
+          <button type="button" className="hrp-x static" onClick={onClose} aria-label="Close"><Icon name="close" size={16} /></button>
+        </div>
+        <div className="hrp-device-mini">
+          <span className="hrp-device-icon"><Icon name={TYPE_ICON[device.type] || "laptop"} size={26} /></span>
+          <div>
+            <strong>{device.name}</strong> <Pill value={device.status} />
+            <small>Serial: {device.serial}</small>
+            <small>{loading ? "Finding the current assignment…" : assignment ? `With ${assignment.employeeName} since ${fmt(assignment.assignedDate)}` : device.assignedTo ? `With ${device.assignedTo}` : "No active assignment found"}</small>
+          </div>
+        </div>
+
+        <label className="hrp-label" htmlFor="rt-date">Return Date *</label>
+        <input id="rt-date" type="date" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
+        <label className="hrp-label" htmlFor="rt-cond">Condition on Return</label>
+        <select id="rt-cond" value={condition} onChange={(e) => setCondition(e.target.value)}>
+          {RETURN_CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <label className="hrp-label" htmlFor="rt-notes">Notes</label>
+        <textarea id="rt-notes" rows={3} maxLength={200} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add any notes about the return… (optional)" />
+        <small className="hrp-count">{notes.length}/200</small>
+
+        {msg && <p className="admin-form-success" role="status">{msg}</p>}
+        {err && <p className="admin-form-error" role="alert">{err}</p>}
+        <div className="admin-modal-actions">
+          <button type="button" className="admin-secondary-button" onClick={onClose}>Cancel</button>
+          <button type="button" className="admin-primary-button" onClick={submit} disabled={busy || loading || !assignment}>{busy ? "Saving…" : "Confirm Return"}</button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 export default function HRAssets() {
   const { employees } = useEmployees();
   const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(Boolean(ASSETS_ENDPOINT));
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [query, setQuery] = useState("");
@@ -154,15 +290,16 @@ export default function HRAssets() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [selectedId, setSelectedId] = useState(null);
-  const [assignFor, setAssignFor] = useState(null);
+  /* Only one side drawer is open at a time: { mode: "assign" | "return" | "register", deviceId? } */
+  const [drawer, setDrawer] = useState(null);
+  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
-    if (!ASSETS_ENDPOINT) return;
     setLoading(true);
     setError("");
     try {
-      const res = await apiClient.get(ASSETS_ENDPOINT);
-      setDevices(getArrayResponse(res).map(normalizeDevice));
+      const res = await apiClient.get(ASSET_ENDPOINTS.assets);
+      setDevices(getArrayResponse(res).map(normalizeAsset));
     } catch (e) {
       setDevices([]);
       setError(getErrorMessage(e, "Could not load devices."));
@@ -175,8 +312,7 @@ export default function HRAssets() {
     void Promise.resolve().then(() => load());
   }, [load]);
 
-  const demoMode = !ASSETS_ENDPOINT && SHOW_DEMO_DATA;
-  const all = demoMode ? DEMO_DEVICES : devices;
+  const all = devices;
 
   const uniq = (key) => [...new Set(all.map((d) => d[key]).filter((v) => v && v !== "—"))].sort();
   const types = useMemo(() => uniq("type"), [all]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -189,7 +325,7 @@ export default function HRAssets() {
         (type === "ALL" || d.type === type) &&
         (status === "ALL" || d.status === status) &&
         (location === "ALL" || d.location === location) &&
-        (!q || [d.name, d.serial, d.assignedTo, d.brand].some((v) => String(v).toLowerCase().includes(q))),
+        (!q || [d.name, d.serial, d.assignedTo, d.brand, d.tag].some((v) => String(v).toLowerCase().includes(q))),
     );
   }, [all, query, type, status, location]);
 
@@ -199,35 +335,40 @@ export default function HRAssets() {
   const visible = filtered.slice(start, start + perPage);
   const selected = all.find((d) => d.id === selectedId) || visible[0] || null;
 
+  /* Assignment history of the selected device (kept for every assignment/return). */
+  const history = useAssetHistory(selected?.id);
+  const activeAssignment = history.rows.find((r) => r.isActive) || null;
+
+  const drawerDevice = drawer?.deviceId !== undefined ? all.find((d) => d.id === drawer.deviceId) : null;
   const count = (s) => all.filter((d) => d.status === s).length;
+
+  function refreshAll(message) {
+    setDrawer(null);
+    setNotice(message);
+    load();
+    history.reload();
+  }
 
   return (
     <div className="hrp-page">
-      {!ASSETS_ENDPOINT && (
-        <NotConnected
-          title="Assets API is not connected yet."
-          text={demoMode
-            ? "These devices are sample data for the design. Set ASSETS_ENDPOINT in HRAssets.jsx once the backend provides it."
-            : "Set ASSETS_ENDPOINT in HRAssets.jsx once the backend provides a devices API."}
-        />
-      )}
       {error && <div className="admin-form-error" role="alert">{error}</div>}
+      {notice && <div className="admin-form-success" role="status">{notice}</div>}
 
       <section className="admin-summary-grid" aria-label="Device summary">
-        <StatCard icon="laptop" tone="blue" label="Total Devices" value={all.length || null} note="In inventory" />
-        <StatCard icon="check" tone="green" label="Available" value={count("Available")} note="Ready to assign" />
-        <StatCard icon="users" tone="blue" label="Assigned" value={count("Assigned")} note="With employees" />
-        <StatCard icon="gear" tone="amber" label="In Repair" value={count("In Repair")} note="Unavailable" />
+        <StatCard icon="laptop" tone="blue" label="Total Devices" value={loading || error ? null : all.length} note="In inventory" />
+        <StatCard icon="check" tone="green" label="Available" value={loading || error ? null : count("Available")} note="Ready to assign" />
+        <StatCard icon="users" tone="blue" label="Assigned" value={loading || error ? null : count("Assigned")} note="With employees" />
+        <StatCard icon="gear" tone="amber" label="In Repair" value={loading || error ? null : count("In Repair")} note="Unavailable" />
       </section>
 
-      <div className={`hrp-split ${assignFor ? "with-side" : ""}`}>
+      <div className={`hrp-split ${drawer ? "with-side" : ""}`}>
         <div className="hrp-col">
           <section className="admin-panel" aria-label="Devices">
             <div className="hrp-filters">
               <label className="people-search">
                 <Icon name="search" size={16} />
                 <input type="search" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-                  placeholder="Search by device name, serial number, or employee..." aria-label="Search devices" />
+                  placeholder="Search by device name, serial number, asset tag or employee..." aria-label="Search devices" />
               </label>
               <select value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} aria-label="Device type">
                 <option value="ALL">All Types</option>{types.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -240,12 +381,15 @@ export default function HRAssets() {
                 <option value="ALL">All Locations</option>{locations.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
               <button type="button" className="admin-link-button" onClick={() => { setQuery(""); setType("ALL"); setStatus("ALL"); setLocation("ALL"); setPage(1); }}>Clear</button>
+              <button type="button" className="admin-primary-button hr-small" onClick={() => { setNotice(""); setDrawer({ mode: "register" }); }}>
+                <Icon name="plus" size={14} /> Register Device
+              </button>
             </div>
 
             {loading ? (
               <p className="admin-note">Loading devices…</p>
             ) : filtered.length === 0 ? (
-              <p className="admin-note">No devices to show.</p>
+              <p className="admin-note">{all.length === 0 && !error ? "No devices have been registered yet. Use Register Device to add the first one." : "No devices to show."}</p>
             ) : (
               <div className="admin-table-wrap">
                 <table className="admin-table hrp-table">
@@ -271,10 +415,17 @@ export default function HRAssets() {
                         <td>
                           <div className="hrp-actions">
                             <button type="button" className="hrp-icon-btn" aria-label={`View ${d.name}`} onClick={() => setSelectedId(d.id)}><Icon name="search" size={15} /></button>
-                            <button type="button" className="admin-primary-button hr-small" disabled={d.status !== "Available"}
-                              onClick={() => { setSelectedId(d.id); setAssignFor(d); }}>
-                              {d.status === "Available" ? "Assign" : d.status === "In Repair" ? "Unavailable" : "Assigned"}
-                            </button>
+                            {d.status === "Assigned" ? (
+                              <button type="button" className="admin-primary-button hr-small"
+                                onClick={() => { setNotice(""); setSelectedId(d.id); setDrawer({ mode: "return", deviceId: d.id }); }}>
+                                Return
+                              </button>
+                            ) : (
+                              <button type="button" className="admin-primary-button hr-small" disabled={d.status !== "Available"}
+                                onClick={() => { setNotice(""); setSelectedId(d.id); setDrawer({ mode: "assign", deviceId: d.id }); }}>
+                                {d.status === "Available" ? "Assign" : "Unavailable"}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -285,8 +436,8 @@ export default function HRAssets() {
             )}
 
             <Pager page={safePage} pages={pages} onPage={(n) => setPage(Math.min(Math.max(n, 1), pages))}
-              perPage={perPage} onPerPage={(n) => { setPerPage(n); setPage(1); }}
-              total={filtered.length} shown={{ from: start + 1, to: Math.min(start + perPage, filtered.length) }} />
+              perPage={perPage} onSize={(n) => { setPerPage(n); setPage(1); }}
+              total={filtered.length} />
           </section>
 
           {selected && (
@@ -299,7 +450,7 @@ export default function HRAssets() {
                     <small>{selected.type} · {selected.brand}</small></div>
                 </div>
                 <dl className="hrp-kv two">
-                  {[["Serial Number", selected.serial], ["Device Type", selected.type], ["Brand", selected.brand],
+                  {[["Serial Number", selected.serial], ["Asset Tag", selected.tag], ["Device Type", selected.type], ["Brand", selected.brand], ["Model", selected.model],
                     ["Location", selected.location], ["Status", selected.status], ["Purchase Date", fmt(selected.purchased)]].map(([k, v]) => (
                     <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
                   ))}
@@ -307,31 +458,56 @@ export default function HRAssets() {
               </section>
               <section className="admin-panel" aria-labelledby="ah-title">
                 <div className="admin-panel-heading"><div><h2 id="ah-title">Assignment History</h2></div></div>
-                {demoMode ? (
+                {history.error && <div className="admin-form-error" role="alert">{history.error}</div>}
+                {history.loading ? (
+                  <p className="admin-note">Loading assignment history…</p>
+                ) : history.rows.length === 0 ? (
+                  <p className="admin-note">This device has not been assigned yet.</p>
+                ) : (
                   <ol className="hrp-history">
-                    {DEMO_HISTORY.map(([title, when, note, tag]) => (
-                      <li key={title}>
+                    {history.rows.map((r) => (
+                      <li key={r.id}>
                         <span className="hrp-history-dot" />
-                        <div><strong>{title}</strong><small>{when}</small><small>{note}</small></div>
-                        <span className={`hrp-pill ${statusTone(tag)}`}>{tag}</span>
+                        <div>
+                          <strong>{r.isActive ? `Assigned to ${r.employeeName}` : `Returned by ${r.employeeName}`}</strong>
+                          <small>Assigned {fmt(r.assignedDate)}{r.returnedDate ? ` · Returned ${fmt(r.returnedDate)}` : r.expectedReturn ? ` · Expected back ${fmt(r.expectedReturn)}` : ""}</small>
+                          {(r.condition || r.returnNotes || r.notes) && (
+                            <small>{[r.condition && `Condition: ${r.condition}`, r.returnNotes || r.notes].filter(Boolean).join(" · ")}</small>
+                          )}
+                        </div>
+                        <span className={`hrp-pill ${statusTone(r.isActive ? "Assigned" : "Returned")}`}>{r.isActive ? "Assigned" : "Returned"}</span>
                       </li>
                     ))}
                   </ol>
-                ) : (
-                  <p className="admin-note">Assignment history will appear once the assets API provides it.</p>
                 )}
               </section>
             </div>
           )}
         </div>
 
-        {assignFor && (
+        {drawer?.mode === "register" && (
+          <RegisterDrawer
+            onClose={() => setDrawer(null)}
+            onRegistered={() => refreshAll("Device registered.")}
+          />
+        )}
+        {drawer?.mode === "assign" && drawerDevice && (
           <AssignDrawer
-            key={assignFor.id}
-            device={assignFor}
+            key={drawerDevice.id}
+            device={drawerDevice}
             employees={employees}
-            onClose={() => setAssignFor(null)}
-            onAssigned={() => { setAssignFor(null); load(); }}
+            onClose={() => setDrawer(null)}
+            onAssigned={() => refreshAll(`${drawerDevice.name} was assigned.`)}
+          />
+        )}
+        {drawer?.mode === "return" && drawerDevice && (
+          <ReturnDrawer
+            key={drawerDevice.id}
+            device={drawerDevice}
+            assignment={activeAssignment}
+            loading={history.loading}
+            onClose={() => setDrawer(null)}
+            onReturned={() => refreshAll(`${drawerDevice.name} was returned and is available again.`)}
           />
         )}
       </div>
