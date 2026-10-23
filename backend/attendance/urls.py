@@ -3,11 +3,16 @@ from django.urls import path
 from attendance.reporting_views import (
     AttendanceRecordListView,
     AttendanceSummaryView,
+    DailyAttendanceReportView,
+    ManagerDashboardView,
     MyWorkScheduleView,
 )
 from attendance.schedule_management_views import (
+    BreakPolicyListView,
+    BreakPolicyDetailView,
     ScheduleAssignmentDetailView,
     ScheduleAssignmentListCreateView,
+    WorkScheduleDetailView,
     WorkScheduleListView,
 )
 from attendance.views import (
@@ -32,7 +37,12 @@ urlpatterns = [
     path("history/", MyAttendanceHistoryView.as_view(), name="history"),
     path("records/", AttendanceRecordListView.as_view(), name="attendance-record-list"),
     path("summary/", AttendanceSummaryView.as_view(), name="attendance-summary"),
+    path("reports/daily/", DailyAttendanceReportView.as_view(), name="daily-attendance-report"),
+    path("manager-dashboard/", ManagerDashboardView.as_view(), name="manager-dashboard"),
     path("schedules/", WorkScheduleListView.as_view(), name="schedule-list"),
+    path("schedules/<int:pk>/", WorkScheduleDetailView.as_view(), name="schedule-detail"),
+    path("break-policies/", BreakPolicyListView.as_view(), name="break-policy-list"),
+    path("break-policies/<int:pk>/", BreakPolicyDetailView.as_view(), name="break-policy-detail"),
     path("assignments/", ScheduleAssignmentListCreateView.as_view(), name="schedule-assignment-list-create"),
     path("assignments/<int:pk>/", ScheduleAssignmentDetailView.as_view(), name="schedule-assignment-detail"),
     path("exceptions/", AttendanceExceptionListCreateView.as_view(), name="exceptions"),

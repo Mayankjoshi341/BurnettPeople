@@ -1,10 +1,12 @@
 """Input and output serializers for HR-managed work schedule assignments."""
 
 from datetime import date
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.db.models import Q
 from rest_framework import serializers
 
+from attendance.models import BreakPolicy
 from attendance.reporting_serializers import WorkScheduleReadSerializer
 from employees.models import Employee, EmployeeScheduleAssignment, WorkSchedule
 
@@ -142,3 +144,45 @@ class ScheduleAssignmentEndSerializer(serializers.Serializer):
         instance.effective_until = validated_data["effective_until"]
         instance.save(update_fields=["effective_until"])
         return instance
+
+
+class WorkScheduleWriteSerializer(serializers.ModelSerializer):
+    break_policy_id = serializers.PrimaryKeyRelatedField(
+        source="break_policy", queryset=BreakPolicy.objects.filter(is_active=True)
+    )
+
+    class Meta:
+        model = WorkSchedule
+        fields = [
+            "id", "name", "start_time", "end_time", "workdays", "timezone",
+            "late_grace_minutes", "break_policy_id", "is_active",
+        ]
+        read_only_fields = ["id"]
+
+    def validate_timezone(self, value):
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise serializers.ValidationError("Enter a valid IANA time zone.") from exc
+        return value
+
+    def validate(self, attrs):
+        start = attrs.get("start_time", getattr(self.instance, "start_time", None))
+        end = attrs.get("end_time", getattr(self.instance, "end_time", None))
+        if start is not None and start == end:
+            raise serializers.ValidationError({"end_time": "Start and end times cannot be equal."})
+
+        if self.instance and (
+            self.instance.employee_assignments.exists()
+            or self.instance.attendance_records.exists()
+        ):
+            historical_fields = ("name", "start_time", "end_time", "workdays", "timezone",
+                                 "late_grace_minutes", "break_policy")
+            changed = [field for field in historical_fields
+                       if field in attrs and getattr(self.instance, f"{field}_id" if field == "break_policy" else field)
+                       != (attrs[field].pk if field == "break_policy" else attrs[field])]
+            if changed:
+                raise serializers.ValidationError(
+                    "This schedule has assignments or attendance history. Create a new schedule to preserve historical records."
+                )
+        return attrs

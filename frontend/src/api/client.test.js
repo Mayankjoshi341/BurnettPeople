@@ -79,7 +79,7 @@ test("coalesces concurrent refresh attempts and retries safe GET requests", asyn
 test("does not automatically replay a non-idempotent POST after refreshing", async () => {
   apiClient.setSessionTokens({ access: "old-access", refresh: "old-refresh" });
   let postCalls = 0;
-  globalThis.fetch = async (url, options) => {
+  globalThis.fetch = async (url) => {
     if (String(url).endsWith("/auth/token/refresh/")) {
       return fakeResponse(200, { access: "new-access", refresh: "new-refresh" });
     }

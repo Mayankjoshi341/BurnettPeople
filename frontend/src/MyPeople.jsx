@@ -1,31 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import apiClient from "./api/client";
 
 import { Icon } from "./DashboardIcons";
 import { StatCard } from "./DashboardParts";
 import {
   AVATAR_TONES,
-  SHOW_DEMO_DATA,
+  getArrayResponse,
   initialsOf,
-  useEmployees,
+  normalizeEmployee,
 } from "./dashboardUtils";
 import "./MyPeople.css";
 
 const PAGE_SIZE = 12;
-
-const DEMO_STREAK = [
-  ["Sneha Joshi", "Product Designer", 31],
-  ["Aarav Sharma", "Software Engineer", 28],
-  ["Neha Gupta", "Finance Analyst", 26],
-  ["Rohan Thakur", "Marketing Manager", 24],
-  ["Vikram Kapoor", "Operations Executive", 21],
-];
-
-const DEMO_DATES = [
-  ["gift", "Kavya Mehta", "Birthday", "18 Oct 2026", "in 2 days"],
-  ["building", "Rahul Verma", "Work Anniversary (2 years)", "20 Oct 2026", "in 4 days"],
-  ["gift", "Priya Nair", "Birthday", "25 Oct 2026", "in 9 days"],
-];
 
 function Avatar({ name, index = 0, size = 56 }) {
   return (
@@ -50,6 +36,8 @@ function PersonModal({ person, index, onClose }) {
     ["Email", person.email],
     ["Department", person.department],
     ["Designation", person.designation],
+    ["Reports to", person.manager],
+    ["Date joined", person.joined || "—"],
     ["Employment status", person.status],
   ];
 
@@ -85,15 +73,52 @@ function PersonModal({ person, index, onClose }) {
   );
 }
 
-export default function MyPeople({ canAdd = false }) {
-  const navigate = useNavigate();
-  const { employees, loading, error, reload } = useEmployees();
+export default function MyPeople({ canAdd = false, onAdd, onLeaderboard, onRemoteWork, onLeave }) {
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [directoryError, setDirectoryError] = useState("");
+  const [overviewError, setOverviewError] = useState("");
+  const [leaderboardError, setLeaderboardError] = useState("");
+  const [overview, setOverview] = useState(null);
+  const [leaderboardRows, setLeaderboardRows] = useState([]);
+  const reload = async () => {
+    setLoading(true);
+    const [directory, summary, board] = await Promise.allSettled([
+        apiClient.get("/employees/directory/"),
+        apiClient.get("/employees/directory/overview/"),
+        apiClient.get("/recognition/leaderboard/?period=week&page_size=5"),
+    ]);
+    if (directory.status === "fulfilled") {
+      setEmployees(getArrayResponse(directory.value).map(normalizeEmployee));
+      setDirectoryError("");
+    } else {
+      setEmployees([]);
+      setDirectoryError(directory.reason?.message || "Could not load the people directory.");
+    }
+    if (summary.status === "fulfilled") {
+      setOverview(summary.value);
+      setOverviewError("");
+    } else {
+      setOverview(null);
+      setOverviewError(summary.reason?.message || "People summary is unavailable.");
+    }
+    if (board.status === "fulfilled") {
+      setLeaderboardRows(board.value?.results?.results || []);
+      setLeaderboardError("");
+    } else {
+      setLeaderboardRows([]);
+      setLeaderboardError(board.reason?.message || "Leaderboard preview is unavailable.");
+    }
+    setLoading(false);
+  };
+  useEffect(() => { void Promise.resolve().then(reload); }, []);
 
   const [tab, setTab] = useState("all");
   const [view, setView] = useState("grid");
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("ALL");
   const [status, setStatus] = useState("ALL");
+  const [newJoinersOnly, setNewJoinersOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
 
@@ -116,13 +141,16 @@ export default function MyPeople({ canAdd = false }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const today = new Date();
+    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
     return employees.filter(
       (e) =>
+        (!newJoinersOnly || (e.status === "ACTIVE" && e.joined?.slice(0, 7) === currentMonth)) &&
         (department === "ALL" || e.department === department) &&
         (status === "ALL" || e.status === status) &&
         (!q || [e.name, e.code, e.email, e.department, e.designation].some((v) => String(v).toLowerCase().includes(q))),
     );
-  }, [employees, query, department, status]);
+  }, [employees, query, department, status, newJoinersOnly]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pages);
@@ -132,6 +160,7 @@ export default function MyPeople({ canAdd = false }) {
     setQuery("");
     setDepartment("ALL");
     setStatus("ALL");
+    setNewJoinersOnly(false);
     setPage(1);
   };
 
@@ -142,8 +171,6 @@ export default function MyPeople({ canAdd = false }) {
     });
     return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
   }, [filtered]);
-
-  const demo = SHOW_DEMO_DATA;
 
   const renderCard = (e, i) => (
     <button
@@ -167,30 +194,38 @@ export default function MyPeople({ canAdd = false }) {
       <section className="admin-summary-grid" aria-label="People summary">
         <StatCard
           icon="users" tone="green" label="Total Employees"
-          value={employees.length || (demo ? 128 : null)}
-          note={employees.length ? "From employee records" : demo ? "+8 this month" : "No records yet"}
-          noteClass={!employees.length && demo ? "up" : ""}
+          value={overview?.total_employees ?? (directoryError ? "—" : employees.length)}
+          note={loading ? "Loading…" : "Active employee records"}
         />
         <StatCard
           icon="building" tone="blue" label="Departments"
-          value={departments.length || (demo ? 8 : null)}
+          value={overview?.departments ?? (directoryError ? "—" : departments.length)}
           note="Across the company"
         />
         <StatCard
           icon="userplus" tone="green" label="New Joiners"
-          value={demo ? 4 : null}
-          note={demo ? "This month" : "Not connected"}
+          value={overview?.new_joiners_this_month ?? "—"}
+          note={newJoinersOnly ? "Showing this month" : "Joined this month · view"}
+          onClick={() => { setNewJoinersOnly(true); setTab("all"); setPage(1); setQuery(""); }}
         />
         <StatCard
-          icon="calendar" tone="green" label="Work From Office"
-          value={demo ? 92 : null}
-          note={demo ? "72% of total" : "Not connected"}
+          icon="home" tone="green" label="Work From Home Today"
+          value={overview?.work_from_home_today ?? "—"}
+          note={overviewError || (overview?.work_from_home_available ? "Approved remote work" : "Remote work is not tracked yet")}
+          onClick={onRemoteWork}
         />
         <StatCard
           icon="plane" tone="blue" label="On Leave Today"
-          value={demo ? 8 : null}
-          note={demo ? "6% of total" : "Not connected"}
+          value={overview?.on_leave_today ?? "—"}
+          note="Approved leave today"
+          onClick={onLeave}
         />
+      </section>
+
+      {directoryError && <div role="alert" className="admin-form-error">{directoryError}</div>}
+      <section className="admin-panel people-leaderboard-preview">
+        <div className="admin-panel-heading"><div><h2>Good Habits Leaderboard</h2><p>Verified positive habits, updated from attendance records.</p></div><button type="button" className="admin-link-button" onClick={onLeaderboard}>View leaderboard <Icon name="arrow" size={14} /></button></div>
+        {loading ? <p className="admin-note">Loading scores…</p> : leaderboardError ? <p className="admin-note" role="status">{leaderboardError}</p> : leaderboardRows.length ? <ol>{leaderboardRows.map((row) => <li key={row.participant_id}><span>#{row.rank} {row.name}</span><strong>{row.points} pts</strong></li>)}</ol> : <p className="admin-note">No eligible scores yet.</p>}
       </section>
 
       <div className="people-layout">
@@ -214,8 +249,8 @@ export default function MyPeople({ canAdd = false }) {
                   <Icon name="list" size={16} />
                 </button>
               </div>
-              {canAdd && (
-                <button type="button" className="admin-primary-button" onClick={() => navigate("/employees/new")}>
+              {canAdd && onAdd && (
+                <button type="button" className="admin-primary-button" onClick={onAdd}>
                   <Icon name="userplus" size={16} /> Add Employee
                 </button>
               )}
@@ -247,12 +282,10 @@ export default function MyPeople({ canAdd = false }) {
             </button>
           </div>
 
-          {error && <div role="alert" className="admin-form-error">{error}</div>}
-
           {loading ? (
             <p className="admin-note">Loading people…</p>
           ) : filtered.length === 0 ? (
-            <p className="admin-note">{error ? "People could not be loaded." : "No people match your filters."}</p>
+            <p className="admin-note">{directoryError ? "People could not be loaded." : "No people match your filters."}</p>
           ) : tab === "all" ? (
             <>
               <div className={`people-grid ${view}`}>{visible.map(renderCard)}</div>
@@ -277,24 +310,6 @@ export default function MyPeople({ canAdd = false }) {
         </section>
 
         <aside className="people-side">
-          {demo && (
-            <section className="admin-panel" aria-labelledby="streak-title">
-              <div className="admin-panel-heading">
-                <div><h2 id="streak-title">Streak Leaderboard</h2><p>Attendance streak (sample data)</p></div>
-              </div>
-              <ol className="people-streak">
-                {DEMO_STREAK.map(([n, role, days], i) => (
-                  <li key={n}>
-                    <b className={`rank r${i + 1}`}>{i + 1}</b>
-                    <Avatar name={n} index={i} size={36} />
-                    <span><strong>{n}</strong><small>{role}</small></span>
-                    <span className="people-days"><Icon name="flame" size={16} /> {days} days</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-
           <section className="admin-panel" aria-labelledby="dept-ov-title">
             <div className="admin-panel-heading">
               <div><h2 id="dept-ov-title">Department Overview</h2></div>
@@ -314,22 +329,6 @@ export default function MyPeople({ canAdd = false }) {
             )}
           </section>
 
-          {demo && (
-            <section className="admin-panel" aria-labelledby="bday-title">
-              <div className="admin-panel-heading">
-                <div><h2 id="bday-title">Birthdays &amp; Anniversaries</h2><p>Sample data</p></div>
-              </div>
-              <ul className="people-dates">
-                {DEMO_DATES.map(([icon, n, what, date, soon]) => (
-                  <li key={n + what}>
-                    <span className={`people-date-icon ${icon}`}><Icon name={icon} size={18} /></span>
-                    <span><strong>{n}</strong><small>{what}</small></span>
-                    <span className="people-date-when"><small>{date}</small><b>{soon}</b></span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </aside>
       </div>
 

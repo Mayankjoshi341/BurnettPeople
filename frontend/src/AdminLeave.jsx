@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import apiClient from "./api/client";
 import { Icon } from "./DashboardIcons";
-import { StatCard, NotConnected, Pager } from "./DashboardParts";
+import { StatCard, Pager } from "./DashboardParts";
 import {
   AVATAR_TONES,
-  SHOW_DEMO_DATA,
   callApi,
   getArrayResponse,
   getErrorMessage,
@@ -13,38 +12,12 @@ import {
 import "./HRPages.css";
 import "./AdminHRLeave.css";
 
-/* ------------------------------------------------------------------
-   Set LEAVE_ENDPOINT when the backend is ready (e.g. "/leave/requests/").
-   While it is null, sample requests are shown (when SHOW_DEMO_DATA is true).
+/* Leave request endpoints are registered under /api/leave/ in Django. */
+const LEAVE_ENDPOINT = "/leave/requests/";
 
-   List  : GET  {LEAVE_ENDPOINT}?applicant_role=HR      (or MANAGER for the other tab)
-   Review: POST {LEAVE_ENDPOINT}{id}/review/   body { decision: "APPROVED" | "REJECTED" }
-   (Tell me the real URLs / field names and I will align this file.)
-   ------------------------------------------------------------------ */
-const LEAVE_ENDPOINT = null;
-
-const STATUS_TONE = { Pending: "warn", Approved: "ok", Rejected: "bad" };
+const STATUS_TONE = { Pending: "warn", Approved: "ok", Rejected: "bad", Cancelled: "grey" };
 const TYPE_CLASS = (t = "") =>
   /sick/i.test(t) ? "sick" : /casual/i.test(t) ? "casual" : /home|wfh/i.test(t) ? "wfh" : /annual/i.test(t) ? "annual" : /paid/i.test(t) ? "paid" : "other";
-
-const d = (m, day) => new Date(2026, m - 1, day).toISOString().slice(0, 10);
-const DEMO = {
-  HR: [
-    ["Anita Sharma", "HR Manager", "Casual Leave", d(10, 20), d(10, 20), "Family function", "Pending", d(10, 15)],
-    ["Rohit Kumar", "HR Executive", "Sick Leave", d(10, 22), d(10, 24), "Fever and cold", "Approved", d(10, 10)],
-    ["Priya Nair", "HR Executive", "Work From Home", d(10, 26), d(10, 26), "Project work", "Pending", d(10, 8)],
-    ["Vikram Singh", "HR Executive", "Annual Leave", d(10, 28), d(10, 30), "Personal work", "Pending", d(10, 5)],
-    ["Neha Kapoor", "HR Executive", "Casual Leave", d(11, 2), d(11, 3), "Medical checkup", "Rejected", d(10, 2)],
-    ["Sneha Desai", "HR Executive", "Paid Leave", d(11, 5), d(11, 6), "Conference", "Approved", d(10, 1)],
-    ["Pooja Lakhwani", "HR Executive", "Work From Home", d(11, 9), d(11, 9), "Remote work", "Pending", d(10, 18)],
-    ["Ishan Kulkarni", "HR Executive", "Sick Leave", d(11, 12), d(11, 13), "Health issue", "Approved", d(10, 12)],
-  ],
-  MANAGER: [
-    ["Neha Kapoor", "Product Manager", "Annual Leave", d(10, 27), d(10, 29), "Family trip", "Pending", d(10, 14)],
-    ["Vikram Singh", "Design Lead", "Sick Leave", d(10, 21), d(10, 21), "Fever", "Approved", d(10, 20)],
-    ["Rahul Verma", "Operations Lead", "Casual Leave", d(11, 4), d(11, 4), "Personal work", "Pending", d(10, 19)],
-  ],
-};
 
 const daysBetween = (from, to) => {
   if (!from || !to) return 0;
@@ -64,20 +37,14 @@ function normalizeLeave(r, i) {
     department: r.department_name || "—",
     email: r.employee_email || r.email || "—",
     phone: r.phone_number || r.phone || "—",
-    type: r.leave_type_label || r.leave_type || "Leave",
+    type: r.leave_type_name || r.leave_type_label || r.leave_type || "Leave",
     from, to,
-    days: r.days ?? r.total_days ?? daysBetween(from, to),
+    days: r.days ?? r.days_count ?? r.total_days ?? daysBetween(from, to),
     reason: r.reason || "—",
-    status: rawStatus.startsWith("APPROV") ? "Approved" : rawStatus.startsWith("REJECT") ? "Rejected" : "Pending",
+    status: rawStatus.startsWith("APPROV") ? "Approved" : rawStatus.startsWith("REJECT") ? "Rejected" : rawStatus.startsWith("CANCEL") ? "Cancelled" : "Pending",
     applied: r.applied_on || r.created_at || "",
   };
 }
-
-const fromDemo = (rows) =>
-  rows.map(([name, role, type, from, to, reason, status, applied], i) => ({
-    id: `demo-${name}-${i}`, name, role, department: "HR", email: `${name.split(" ")[0].toLowerCase()}@burnettpeople.com`,
-    phone: "+91 98765 43210", type, from, to, days: daysBetween(from, to), reason, status, applied, demo: true,
-  }));
 
 const fmt = (iso) =>
   iso ? new Date(iso.length === 10 ? `${iso}T00:00:00` : iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -196,7 +163,6 @@ function SummaryDonut({ counts, total }) {
 
 /* ---------- page ---------- */
 export default function AdminLeave() {
-  const [kind, setKind] = useState("HR"); // HR | MANAGER
   const [remote, setRemote] = useState([]);
   const [loading, setLoading] = useState(Boolean(LEAVE_ENDPOINT));
   const [error, setError] = useState("");
@@ -219,7 +185,7 @@ export default function AdminLeave() {
     setLoading(true);
     setError("");
     try {
-      const res = await apiClient.get(`${LEAVE_ENDPOINT}?applicant_role=${kind}`);
+      const res = await apiClient.get(LEAVE_ENDPOINT);
       setRemote(getArrayResponse(res).map(normalizeLeave));
     } catch (e) {
       setRemote([]);
@@ -227,16 +193,14 @@ export default function AdminLeave() {
     } finally {
       setLoading(false);
     }
-  }, [kind]);
+  }, []);
 
   useEffect(() => {
     void Promise.resolve().then(() => load());
   }, [load]);
 
-  const demoMode = !LEAVE_ENDPOINT && SHOW_DEMO_DATA;
-  const [demoRows, setDemoRows] = useState(() => ({ HR: fromDemo(DEMO.HR), MANAGER: fromDemo(DEMO.MANAGER) }));
-  const all = demoMode ? demoRows[kind] : remote;
-  const label = kind === "HR" ? "HR" : "Manager";
+  const all = remote;
+  const label = "Employee";
 
   const people = useMemo(() => [...new Set(all.map((r) => r.name))].sort(), [all]);
 
@@ -285,18 +249,10 @@ export default function AdminLeave() {
     setMsg("");
     setErr("");
     if (request.status !== "Pending") { setErr("This request has already been reviewed."); return; }
-    if (request.demo) {
-      // sample data: update locally so the screen can be previewed, nothing is saved
-      setDemoRows((prev) => ({
-        ...prev,
-        [kind]: prev[kind].map((r) => (r.id === request.id ? { ...r, status: decision === "APPROVED" ? "Approved" : "Rejected" } : r)),
-      }));
-      setMsg("Sample data only: this change is not saved.");
-      return;
-    }
     setBusy(true);
     try {
-      await callApi("post", `${LEAVE_ENDPOINT}${request.id}/review/`, { decision });
+      const action = decision === "APPROVED" ? "approve" : "reject";
+      await callApi("post", `${LEAVE_ENDPOINT}${request.id}/${action}/`, {});
       setMsg(decision === "APPROVED" ? "Leave request approved." : "Leave request rejected.");
       load();
     } catch (e) {
@@ -309,22 +265,9 @@ export default function AdminLeave() {
   return (
     <div className="hrp-page ahl-page">
       <div className="hrp-toolbar">
-        <div className="ahl-seg" role="tablist" aria-label="Leave type">
-          {[["HR", "HR Leaves"], ["MANAGER", "Manager Leaves"]].map(([id, text]) => (
-            <button key={id} type="button" role="tab" aria-selected={kind === id} className={kind === id ? "on" : ""}
-              onClick={() => { setKind(id); setSelectedId(null); resetFilters(); setMsg(""); setErr(""); }}>{text}</button>
-          ))}
-        </div>
+        <div className="ahl-seg"><button type="button" className="on" disabled>All Employee Leave Requests</button></div>
       </div>
 
-      {!LEAVE_ENDPOINT && (
-        <NotConnected
-          title="Leave API is not connected yet."
-          text={demoMode
-            ? "These requests are sample data for the design (approve/reject only changes the preview). Set LEAVE_ENDPOINT in AdminLeave.jsx once the backend provides it."
-            : "Set LEAVE_ENDPOINT in AdminLeave.jsx once the backend provides a leave API."}
-        />
-      )}
       {error && <div className="admin-form-error" role="alert">{error}</div>}
 
       <section className="admin-summary-grid" aria-label="Leave summary">

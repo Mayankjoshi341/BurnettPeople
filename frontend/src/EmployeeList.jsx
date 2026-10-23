@@ -63,7 +63,7 @@ function EmployeeList() {
     }
   }, [activationFilter]);
 
-  useEffect(() => { loadEmployees(); }, [loadEmployees]);
+  useEffect(() => { void Promise.resolve().then(loadEmployees); }, [loadEmployees]);
 
   const departments = useMemo(() => {
     const options = new Map();

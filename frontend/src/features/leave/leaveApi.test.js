@@ -6,8 +6,10 @@ import {
   leaveMarks,
   normalizeLeaveBalance,
   normalizeLeaveRequest,
+  LEAVE_ENDPOINTS,
   rangesOverlap,
   requestLeaveDraft,
+  submitLeaveRequest,
   upcomingLeave,
 } from "./leaveApi.js";
 
@@ -27,6 +29,25 @@ test("normalizeLeaveBalance derives remaining days", () => {
   const b = normalizeLeaveBalance({ id: 1, leave_type: 1, leave_type_name: "Sick Leave", total_days: 8, used_days: 3 });
   assert.equal(b.remaining, 5);
   assert.equal(b.name, "Sick Leave");
+});
+
+test("leave API paths and create payload match Django serializers", async () => {
+  assert.equal(LEAVE_ENDPOINTS.requests, "/leave/requests/");
+  assert.equal(LEAVE_ENDPOINTS.balances, "/leave/balances/me/");
+  assert.equal(LEAVE_ENDPOINTS.types, "/leave/types/");
+  const realFetch = globalThis.fetch;
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url: String(url), body: JSON.parse(options.body) };
+    return { ok: true, status: 201, headers: { get: () => "application/json" }, text: async () => "{}" };
+  };
+  try {
+    await submitLeaveRequest({ leaveType: "3", startDate: "2026-11-02", endDate: "2026-11-02", reason: "  Appointment  " });
+    assert.match(request.url, /\/leave\/requests\/$/);
+    assert.deepEqual(request.body, { leave_type_id: 3, start_date: "2026-11-02", end_date: "2026-11-02", reason: "Appointment" });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 test("rangesOverlap is inclusive and handles missing dates", () => {

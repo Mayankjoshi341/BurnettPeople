@@ -1,3 +1,5 @@
+/* This module exports reusable UI components and data hooks by design. */
+/* eslint react-refresh/only-export-components: off */
 import { useCallback, useEffect, useState } from "react";
 
 import apiClient from "./api/client";
@@ -118,12 +120,12 @@ export function useResource(endpoint, demoRows = []) {
   };
   const update = async (id, item) => {
     if (demo) { setRows((p) => p.map((r) => (r.id === id ? { ...r, ...item } : r))); return; }
-    await send("patch", `${endpoint}${id}/`, item);
+    await send("patch", `${endpoint.split("?")[0]}${id}/`, item);
     await load();
   };
   const remove = async (id) => {
     if (demo) { setRows((p) => p.filter((r) => r.id !== id)); return; }
-    await send("delete", `${endpoint}${id}/`);
+    await send("delete", `${endpoint.split("?")[0]}${id}/`);
     await load();
   };
 
@@ -147,7 +149,8 @@ export function FormPanel({ title, subtitle, fields, initial = {}, submitLabel, 
     e.preventDefault();
     const er = {};
     fields.forEach((f) => {
-      if (f.req && !String(v[f.k]).trim()) er[f.k] = `${f.label} is required.`;
+      const empty = Array.isArray(v[f.k]) ? v[f.k].length === 0 : !String(v[f.k]).trim();
+      if (f.req && empty) er[f.k] = `${f.label} is required.`;
     });
     setErrs(er);
     if (Object.keys(er).length) return;
@@ -179,10 +182,16 @@ export function FormPanel({ title, subtitle, fields, initial = {}, submitLabel, 
                   <textarea id={`f-${f.k}`} rows={4} maxLength={f.max || 200} value={v[f.k]} placeholder={f.ph} onChange={(e) => set(f.k, e.target.value)} />
                   <span className="ap-count">{String(v[f.k]).length}/{f.max || 200}</span>
                 </>
+              ) : f.type === "multiselect" ? (
+                <select id={`f-${f.k}`} multiple value={Array.isArray(v[f.k]) ? v[f.k] : []} onChange={(e) => set(f.k, [...e.target.selectedOptions].map((option) => option.value))} aria-invalid={Boolean(errs[f.k])}>
+                  {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
               ) : f.type === "select" ? (
                 <select id={`f-${f.k}`} value={v[f.k]} onChange={(e) => set(f.k, e.target.value)} aria-invalid={Boolean(errs[f.k])}>
                   {f.ph && <option value="">{f.ph}</option>}
-                  {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                  {f.options.map((o) => typeof o === "string"
+                    ? <option key={o} value={o}>{o}</option>
+                    : <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               ) : (
                 <input id={`f-${f.k}`} type={f.type || "text"} value={v[f.k]} placeholder={f.ph} onChange={(e) => set(f.k, e.target.value)} aria-invalid={Boolean(errs[f.k])} />

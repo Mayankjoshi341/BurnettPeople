@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from accounts.models import User
+from accounts.models import AuditEvent, User
 from attendance.models import AttendanceException, AttendanceRecord, BreakPolicy, BreakPolicyRule
 from employees.models import Employee, EmployeeScheduleAssignment, WorkSchedule
 from organization.models import Department, Designation
@@ -50,6 +50,9 @@ class AttendanceApiTests(APITestCase):
         first = self.client.post("/api/attendance/check-in/", {}, format="json")
         self.assertEqual(first.status_code, 201, first.data)
         self.assertEqual(AttendanceRecord.objects.filter(employee=self.employee).count(), 1)
+        self.assertTrue(AuditEvent.objects.filter(
+            action=AuditEvent.Action.ATTENDANCE_CHECKED_IN, object_id=str(first.data["attendance"]["id"]),
+        ).exists())
         second = self.client.post("/api/attendance/check-in/", {}, format="json")
         self.assertEqual(second.status_code, 400)
 
@@ -62,6 +65,9 @@ class AttendanceApiTests(APITestCase):
         record = AttendanceRecord.objects.get(employee=self.employee)
         self.assertEqual(record.status, AttendanceRecord.Status.CLOSED)
         self.assertIsNotNone(record.check_out)
+        self.assertTrue(AuditEvent.objects.filter(
+            action=AuditEvent.Action.ATTENDANCE_CHECKED_OUT, object_id=str(record.pk),
+        ).exists())
 
     def test_break_must_be_ended_before_checkout(self):
         self.client.post("/api/attendance/check-in/", {}, format="json")
@@ -94,6 +100,12 @@ class AttendanceApiTests(APITestCase):
         exception = AttendanceException.objects.get(pk=exception_id)
         self.assertEqual(exception.review_status, AttendanceException.ReviewStatus.APPROVED)
         self.assertEqual(exception.reviewed_by, hr)
+        self.assertTrue(AuditEvent.objects.filter(
+            action=AuditEvent.Action.ATTENDANCE_EXCEPTION_SUBMITTED, object_id=str(exception_id),
+        ).exists())
+        self.assertTrue(AuditEvent.objects.filter(
+            action=AuditEvent.Action.ATTENDANCE_EXCEPTION_REVIEWED, object_id=str(exception_id),
+        ).exists())
 
     def test_non_hr_cannot_review_exception(self):
         exception = AttendanceException.objects.create(

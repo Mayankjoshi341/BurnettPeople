@@ -1,4 +1,38 @@
+
 services:
+  db:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    env_file:
+      - .env
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli -a \"$${REDIS_PASSWORD}\" ping 2>/dev/null | grep -q PONG"
+        ]
   redis:
     image: redis:7-alpine
     ports:
@@ -15,6 +49,11 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      REDIS_URL: "redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}@redis:6379/0"
     environment: &backend-env
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is missing from the root .env file}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is missing from the root .env file}
@@ -36,6 +75,12 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    command:
+      - python
+      - manage.py
+      - runserver
+      - 0.0.0.0:8000
+    restart: unless-stopped
     command: ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
     healthcheck:
       test: ["CMD", "python", "-c", "import os,urllib.request; host=os.environ.get('DJANGO_ALLOWED_HOSTS','localhost').split(',')[0]; req=urllib.request.Request('http://127.0.0.1:8000/api/health/ready/', headers={'Host':host}); urllib.request.urlopen(req, timeout=3)"]
@@ -48,6 +93,18 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      REDIS_URL: "redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}@redis:6379/0"
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - --loglevel=INFO
+      - --concurrency=2
     environment: *backend-env
     depends_on:
       redis:

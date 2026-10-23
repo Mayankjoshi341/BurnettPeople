@@ -8,6 +8,18 @@ from redis import Redis
 
 
 @require_GET
+def liveness_check(request):
+    """Report that Django can serve requests without checking dependencies."""
+    return JsonResponse({"status": "ok"})
+
+
+@require_GET
+def readiness_check(request):
+    """Use the dependency check to signal whether this instance can serve work."""
+    return health_check(request)
+
+
+@require_GET
 def health_check(request):
     checks = {}
 

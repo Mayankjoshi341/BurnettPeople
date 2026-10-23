@@ -3,14 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import apiClient from "./api/client";
 import { SHOW_DEMO_DATA, getErrorMessage } from "./dashboardUtils";
 
-/* ------------------------------------------------------------------
-   Backend contract (adjust to your Django URLs)
-   GET  MANAGER_ENDPOINT                         -> { team, week, leaves, assets, activity, schedule, perf, profile }
-   POST MANAGER_LEAVE_ENDPOINT + <id>/approve/   -> approve a leave request   (same for /reject/)
-   Shapes are described by DEMO below.
-   ------------------------------------------------------------------ */
-export const MANAGER_ENDPOINT = "/manager/dashboard/";
-export const MANAGER_LEAVE_ENDPOINT = "/manager/leaves/";
+/* Team membership and derived attendance values are server scoped to direct reports. */
+export const MANAGER_ENDPOINT = "/attendance/manager-dashboard/";
+export const MANAGER_LEAVE_ENDPOINT = "/leave/requests/";
 
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -85,9 +80,14 @@ export const DEMO = {
 export function summarize(team = []) {
   const total = team.length;
   const c = (s) => team.filter((t) => t.status === s).length;
-  const pct = (n) => (total ? Math.round((n / total) * 1000) / 10 : 0);
+  const present = c("Present");
+  const leave = c("On Leave");
+  const absent = c("Absent");
+  const attendanceTotal = present + leave + absent;
+  const pct = (n) => (attendanceTotal ? Math.round((n / attendanceTotal) * 1000) / 10 : 0);
   return {
-    total, present: c("Present"), leave: c("On Leave"), absent: c("Absent"), wfh: c("Work From Home"),
+    total, attendanceTotal, present, leave, absent,
+    wfh: team.some((t) => t.status === "Work From Home") ? c("Work From Home") : null,
     late: team.filter((t) => t.late).length, early: team.filter((t) => t.early).length, pct,
   };
 }

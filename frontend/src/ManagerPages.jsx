@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import apiClient from "./api/client";
 import { Icon } from "./DashboardIcons";
 import { NotConnected, MonthCalendar } from "./DashboardParts";
 import { SHOW_DEMO_DATA, getErrorMessage } from "./dashboardUtils";
@@ -7,7 +8,7 @@ import { Av, MiniStat, Pager, Pill, downloadCsv } from "./AdminUi";
 import { Donut } from "./ManagerCharts";
 import { DEMO, summarize } from "./ManagerData";
 
-const STATUS_OPTIONS = ["Present", "Absent", "On Leave", "Work From Home"];
+const STATUS_OPTIONS = ["Present", "Absent", "On Leave", "Not Scheduled"];
 const dash = (v) => v || "—";
 
 /* ---------- shared: team members table with search / filter / pagination ---------- */
@@ -191,14 +192,25 @@ export function SchedulePage({ data }) {
   );
 }
 
-export function NotificationsPage({ data }) {
-  const pending = (data.leaves || []).filter((l) => l.status === "Pending");
-  const items = [...pending.map((l) => ({ icon: "plane", title: `${l.name} requested ${l.type}`, when: l.dates })), ...(data.activity || [])];
+export function NotificationsPage({ notifications }) {
+  const [error, setError] = useState("");
+  const rows = notifications.rows || [];
+  async function markRead(id) {
+    setError("");
+    try { await apiClient.post(`/notifications/${id}/read/`, {}); await notifications.reload(); }
+    catch (e) { setError(getErrorMessage(e, "Could not update this notification.")); }
+  }
+  async function markAllRead() {
+    setError("");
+    try { await apiClient.post("/notifications/read-all/", {}); await notifications.reload(); }
+    catch (e) { setError(getErrorMessage(e, "Could not update notifications.")); }
+  }
   return (
     <section className="admin-panel">
-      <div className="admin-panel-heading"><div><h2>Notifications</h2><p>Updates about your team.</p></div></div>
-      {items.length === 0 ? <p className="admin-note">You&rsquo;re all caught up.</p> : (
-        <ul className="mgr-activity">{items.map((a, i) => <li key={i}><span className="mgr-act-icon"><Icon name={a.icon} size={18} /></span><span><strong>{a.title}</strong><small>{a.when}</small></span></li>)}</ul>
+      <div className="admin-panel-heading"><div><h2>Notifications</h2><p>Updates sent to your account.</p></div>{rows.some((item) => !item.read_at) && <button type="button" className="admin-secondary-button" onClick={markAllRead}>Mark all read</button>}</div>
+      {(error || notifications.error) && <div role="alert" className="admin-form-error">{error || notifications.error}</div>}
+      {notifications.loading ? <p className="admin-note">Loading notifications…</p> : rows.length === 0 ? <p className="admin-note">You&rsquo;re all caught up.</p> : (
+        <ul className="mgr-activity">{rows.map((item) => <li key={item.id}><span className="mgr-act-icon"><Icon name={item.kind === "LEAVE" ? "plane" : "check"} size={18} /></span><span><strong>{item.title}</strong><small>{item.message} · {new Date(item.created_at).toLocaleString()}</small></span>{!item.read_at && <button type="button" className="admin-link-button" onClick={() => markRead(item.id)}>Mark read</button>}</li>)}</ul>
       )}
     </section>
   );
@@ -216,7 +228,6 @@ export function ReportsPage({ data }) {
   const marks = useMemo(() => Object.fromEntries((data.week || []).map((d) => [d.date, d.absent > 0 && d.present === 0 ? "absent" : "present"])), [data.week]);
   const today = new Date();
   const dateLabel = today.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-  const isWeekend = today.getDay() === 0 || today.getDay() === 6;
   const byType = Object.entries(assets.reduce((m, a) => ({ ...m, [a.type]: (m[a.type] || 0) + 1 }), {}));
 
   if (!team.length && !(data.team || []).length) return <Empty title="Team reports" />;
@@ -237,7 +248,7 @@ export function ReportsPage({ data }) {
         <MiniStat icon="check" tone="green" value={s.present} label="Present Today" note={`${s.pct(s.present)}%`} />
         <MiniStat icon="alert" tone="red" value={s.absent} label="Absent Today" note={`${s.pct(s.absent)}%`} />
         <MiniStat icon="plane" tone="amber" value={s.leave} label="On Leave" />
-        <MiniStat icon="home" tone="blue" value={s.wfh} label="Work From Home" />
+        <MiniStat icon="home" tone="blue" value={s.wfh} label="Work From Home" note={s.wfh == null ? "Not tracked by attendance records" : undefined} />
         <MiniStat icon="clock" tone="amber" value={s.late} label="Late Arrival" />
         <MiniStat icon="logout" tone="red" value={s.early} label="Early Check-out" />
       </section>
@@ -247,7 +258,7 @@ export function ReportsPage({ data }) {
         <section className="admin-panel">
           <div className="admin-panel-heading">
             <div className="ap-person big"><span className="ap-dev-icon big"><Icon name="calendar" size={22} /></span>
-              <div><h2>Team Overview</h2><p>{dateLabel} ({today.toLocaleDateString("en-GB", { weekday: "long" })}) <span className={`ap-pill ${isWeekend ? "amber" : "green"}`}>{isWeekend ? "Off Day" : "Working Day"}</span></p></div></div>
+              <div><h2>Team Overview</h2><p>{dateLabel} ({today.toLocaleDateString("en-GB", { weekday: "long" })}) <span className={`ap-pill ${s.attendanceTotal ? "green" : "amber"}`}>{s.attendanceTotal ? "Scheduled Team" : "No Scheduled Team"}</span></p></div></div>
           </div>
           <div className="ap-tabs" role="tablist">
             {[["attendance", "Attendance"], ["leave", "Leave"], ["assets", "Assets"]].map(([id, label]) => (
@@ -259,9 +270,9 @@ export function ReportsPage({ data }) {
             <div className="ap-overview">
               <div className="ap-card"><h3>Team Attendance</h3>
                 <div className="mgr-donut-row">
-                  <Donut total={s.total} parts={[["Present", s.present, "#14a37f"], ["Absent", s.absent, "#f26d6d"], ["On Leave", s.leave, "#f5c04d"], ["Work From Home", s.wfh, "#4e9bea"]]} />
+                  <Donut total={s.attendanceTotal} parts={[["Present", s.present, "#14a37f"], ["Absent", s.absent, "#f26d6d"], ["On Leave", s.leave, "#f5c04d"]]} />
                   <ul className="ap-donut-legend">
-                    {[["Present", s.present, "#14a37f"], ["Absent", s.absent, "#f26d6d"], ["On Leave", s.leave, "#f5c04d"], ["Work From Home", s.wfh, "#4e9bea"]].map(([n, v, c]) => (
+                    {[["Present", s.present, "#14a37f"], ["Absent", s.absent, "#f26d6d"], ["On Leave", s.leave, "#f5c04d"]].map(([n, v, c]) => (
                       <li key={n}><i style={{ background: c }} /><span>{n}</span><b>{v}</b><em>{s.pct(v)}%</em></li>))}
                   </ul>
                 </div>

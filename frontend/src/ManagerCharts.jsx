@@ -41,16 +41,18 @@ export function BarChart({ data }) {
 export function Donut({ parts, total, label = "Members" }) {
   const sum = parts.reduce((n, p) => n + p[1], 0) || 1;
   const R = 52, C = 2 * Math.PI * R;
-  let offset = 0;
+  const segments = parts.map(([name, n, color], index) => {
+    const len = (n / sum) * C;
+    const offset = parts.slice(0, index).reduce((amount, part) => amount + (part[1] / sum) * C, 0);
+    const segment = n > 0
+      ? <circle key={name} cx="70" cy="70" r={R} fill="none" stroke={color} strokeWidth="16" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} transform="rotate(-90 70 70)" />
+      : null;
+    return segment;
+  });
   return (
     <svg viewBox="0 0 140 140" className="mgr-donut" role="img" aria-label={`${label} breakdown`}>
       <circle cx="70" cy="70" r={R} fill="none" stroke="var(--ad-border)" strokeWidth="16" />
-      {parts.map(([name, n, color]) => {
-        const len = (n / sum) * C;
-        const el = n > 0 ? <circle key={name} cx="70" cy="70" r={R} fill="none" stroke={color} strokeWidth="16" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} transform="rotate(-90 70 70)" /> : null;
-        offset += len;
-        return el;
-      })}
+      {segments}
       <text x="70" y="68" textAnchor="middle" className="n">{total}</text>
       <text x="70" y="85" textAnchor="middle" className="l">{label}</text>
     </svg>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-import apiClient from "../../api/client";
-import { getArrayResponse, getErrorMessage } from "../../dashboardUtils";
+import apiClient from "../../api/client.js";
+import { getArrayResponse, getErrorMessage } from "../../dashboardUtils.js";
 
 /* ------------------------------------------------------------------
    Asset API contract (Day 4)
@@ -16,9 +16,9 @@ import { getArrayResponse, getErrorMessage } from "../../dashboardUtils";
    ------------------------------------------------------------------ */
 export const ASSET_ENDPOINTS = {
   assets: "/assets/",
-  assign: (id) => `/assets/${id}/assign/`,
-  assignments: "/asset-assignments/",
-  returnAsset: (assignmentId) => `/asset-assignments/${assignmentId}/return/`,
+  assign: () => "/assets/assignments/",
+  assignments: "/assets/assignments/",
+  returnAsset: (assignmentId) => `/assets/assignments/${assignmentId}/return/`,
 };
 
 export const RETURN_CONDITIONS = ["Good", "Fair", "Damaged"];
@@ -43,8 +43,8 @@ export function normalizeAsset(raw, index = 0) {
   return {
     id: raw.id ?? index,
     name,
-    type: pretty(raw.asset_type || raw.device_type || raw.type) || "Laptop",
-    brand: text(raw.brand),
+    type: pretty(raw.category || raw.asset_type || raw.device_type || raw.type) || "Laptop",
+    brand: text(raw.manufacturer || raw.brand),
     model: text(raw.model),
     serial: text(raw.serial_number || raw.serial),
     tag: text(raw.asset_tag || raw.tag),
@@ -72,7 +72,7 @@ export function normalizeAssignment(raw, index = 0) {
     expectedReturn: raw.expected_return_date || "",
     returnedDate,
     isActive: typeof raw.is_active === "boolean" ? raw.is_active : !returnedDate,
-    condition: raw.return_condition || raw.condition || "",
+    condition: raw.condition_on_return || raw.return_condition || raw.condition || "",
     notes: raw.notes || "",
     returnNotes: raw.return_notes || "",
   };
@@ -92,30 +92,30 @@ export function formatAssetDate(value) {
 export function registerPayload(values) {
   const payload = {
     name: values.name.trim(),
-    asset_type: values.type.trim() || "Laptop",
-    brand: values.brand.trim(),
+    category: ["LAPTOP", "DESKTOP", "PHONE", "TABLET", "ACCESSORY", "OTHER"].includes(values.type.trim().toUpperCase())
+      ? values.type.trim().toUpperCase()
+      : "OTHER",
+    manufacturer: values.brand.trim(),
     model: values.model.trim(),
     serial_number: values.serial.trim(),
     asset_tag: values.tag.trim(),
+    purchase_date: values.purchased || null,
     location: values.location.trim(),
     notes: values.notes.trim(),
   };
-  if (values.purchased) payload.purchase_date = values.purchased;
   return payload;
 }
 
-export function assignPayload({ employee, date, expectedReturn, location, notes }) {
+export function assignPayload({ assetId, employee, notes }) {
   return {
-    employee: Number(employee),
-    assigned_date: date,
-    expected_return_date: expectedReturn || null,
-    location,
+    asset_id: Number(assetId),
+    employee_id: Number(employee),
     notes,
   };
 }
 
-export function returnPayload({ date, condition, notes }) {
-  return { returned_date: date, condition, notes };
+export function returnPayload({ condition, notes }) {
+  return { condition_on_return: condition, notes };
 }
 
 /* Server field errors ({ field: [messages] }) -> { field: "message" } for the forms. */
@@ -135,7 +135,7 @@ export function useAssetHistory(assetId) {
     }
     setState((s) => ({ ...s, loading: true, error: "" }));
     try {
-      const res = await apiClient.get(`${ASSET_ENDPOINTS.assignments}?asset=${encodeURIComponent(assetId)}`);
+      const res = await apiClient.get(`${ASSET_ENDPOINTS.assignments}?asset_id=${encodeURIComponent(assetId)}`);
       const rows = getArrayResponse(res)
         .map(normalizeAssignment)
         // Some backends ignore the filter; keep only this asset's rows when the id is known.
@@ -160,7 +160,7 @@ export function useMyAssets() {
 
   const load = useCallback(async () => {
     try {
-      const res = await apiClient.get(ASSET_ENDPOINTS.assignments);
+      const res = await apiClient.get("/assets/me/");
       const rows = getArrayResponse(res)
         .map(normalizeAssignment)
         .sort((a, b) => String(b.assignedDate).localeCompare(String(a.assignedDate)));

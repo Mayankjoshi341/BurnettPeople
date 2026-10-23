@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import StatusUpdates from "./StatusUpdates";
 import apiClient from "./api/client";
 import { Icon } from "./DashboardIcons";
-import AdminAssets from "./AdminAssets";
+import HRAssets from "./HRAssets";
 import AdminAuditLogs from "./AdminAuditLogs";
 import AdminCompanySettings from "./AdminCompanySettings";
 import AdminEmployees from "./AdminEmployees";
@@ -10,6 +10,8 @@ import AdminReports from "./AdminReports";
 import AdminHRManagers from "./AdminHRManagers"; // NEW: HR & Manager Overview
 import AdminLeave from "./AdminLeave"; // NEW: Leave Management
 import MyPeople from "./MyPeople";
+import Leaderboard from "./Leaderboard";
+import RemoteWork from "./RemoteWork";
 import "./AdminDashboard.css";
 import "./AdminPages.css";
 import burnettLogo from "./assets/burnettpeople-logo.png";
@@ -21,11 +23,11 @@ import loginSoftMint from "./assets/login-soft-mint.png";
    ------------------------------------------------------------------ */
 // true  = reference-style sample numbers (for design preview only)
 // false = real data only; cards show "—" until your metrics API responds
-const SHOW_DEMO_DATA = true;
+const SHOW_DEMO_DATA = false;
 
 // Backend endpoints - change to match your Django URLs
 const METRICS_ENDPOINT = "/admin/metrics/";
-const HR_CREATE_ENDPOINT = "/auth/hr-users/";
+const HR_CREATE_ENDPOINT = "/admin/hr/";
 
 /* ------------------------------------------------------------------
    Navigation (reference design)
@@ -34,8 +36,12 @@ const NAV = [
   { id: "overview", label: "Overview", icon: "home" },
   { id: "employees", label: "Employees", icon: "users" },
   { id: "people", label: "My People", icon: "people" },
+  { id: "leaderboard", label: "Leaderboard", icon: "flame" },
+  { id: "remote-work", label: "Remote Work", icon: "home" },
+  { id: "hr-roles", label: "HR & Roles", icon: "shield" },
   { id: "hr-roles", label: "HR & Manager Management", icon: "shield" },
   { id: "company", label: "Company Settings", icon: "building" },
+  { id: "schedule-assignments", label: "Schedule Assignments", icon: "calendar" },
   { id: "attendance", label: "Attendance & Breaks", icon: "clock" },
   { id: "exceptions", label: "Exception Reviews", icon: "alert" },
   { id: "leave", label: "Leave Management", icon: "plane" },
@@ -51,10 +57,14 @@ const PAGE_META = {
   overview: ["Admin Dashboard", "Your people, your operations, one place."],
   employees: ["Employee Management", "View employees, review details and update managers, roles and status."],
   people: ["My People", "Explore your organization, connect with colleagues and celebrate achievements."],
+  leaderboard: ["Good Habits & Leaderboard", "Recognize positive, verified work habits across the company."],
+  "remote-work": ["Remote Work", "Review approved work location requests."],
+  "hr-roles": ["HR & Roles", "Onboard HR users and review access roles."],
   "hr-roles": ["HR & Manager Overview", "Manage HR employees, assign managers, and view reporting structure."],
   company: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
   departments: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
   schedules: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
+  "schedule-assignments": ["Schedule Assignments", "Assign effective-dated work schedules and review assignment history."],
   attendance: ["Attendance & Breaks", "Track check-ins, breaks and hours."],
   exceptions: ["Exception Reviews", "Resolve attendance exceptions."],
   leave: ["Leave Management", "Review and manage HR leave requests and manager leave requests."],
@@ -100,7 +110,7 @@ function initialsOf(name = "") {
 /* ------------------------------------------------------------------
    Small components
    ------------------------------------------------------------------ */
-function AttendanceChart({ data }) {
+function AttendanceChart({ data, dates }) {
   const W = 640, H = 230, L = 36, R = 12, T = 12, B = 34;
   const max = 120;
   const step = (W - L - R) / (data.length - 1);
@@ -111,18 +121,13 @@ function AttendanceChart({ data }) {
   const area = `${line} L${x(data.length - 1)},${y(0)} L${x(0)},${y(0)} Z`;
 
   // last 7 days labels ending today
-  const labels = useMemo(() => {
-    const out = [];
-    for (let i = data.length - 1; i >= 0; i -= 1) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      out.push({
-        top: d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
-        bottom: d.toLocaleDateString("en-GB", { weekday: "short" }),
-      });
-    }
-    return out;
-  }, [data.length]);
+  const labels = useMemo(() => (dates || []).map((value) => {
+    const d = new Date(`${value}T12:00:00`);
+    return {
+      top: d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+      bottom: d.toLocaleDateString("en-GB", { weekday: "short" }),
+    };
+  }), [dates]);
 
   return (
     <svg className="admin-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Attendance trend for the last 7 days">
@@ -198,12 +203,13 @@ function HRFormModal({ onClose }) {
 
     setBusy(true);
     try {
+      const [first_name, ...lastNames] = form.full_name.trim().split(/\s+/);
       const result = await apiClient.post(HR_CREATE_ENDPOINT, {
-        full_name: form.full_name.trim(),
+        first_name,
+        last_name: lastNames.join(" ") || "HR",
         email: form.email.trim(),
-        role: "HR",
       });
-      setSuccess(result?.detail || "HR user created. An invitation has been sent.");
+      setSuccess(result?.detail || "HR user created. An invitation has been queued for delivery.");
       setForm({ full_name: "", email: "" });
     } catch (requestError) {
       const fields = requestError?.fieldErrors || {};
@@ -277,14 +283,13 @@ function HRFormModal({ onClose }) {
 /* ------------------------------------------------------------------
    Pages
    ------------------------------------------------------------------ */
-function OverviewPage({ user, data, go }) {
+function OverviewPage({ user, data, go, workflowRange, onWorkflowRangeChange }) {
   const first = (user?.first_name || user?.full_name || user?.name || "Admin").split(" ")[0];
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const today = new Date();
 
   const t = data?.totals;
-  const a = data?.attention;
 
   return (
     <>
@@ -334,14 +339,14 @@ function OverviewPage({ user, data, go }) {
           <div className="admin-panel-heading">
             <div>
               <h2 id="wf-title">Workforce Overview</h2>
-              <p>Attendance trend for the last 7 days</p>
+              <p>Recorded check-ins across the last {workflowRange} weekdays</p>
             </div>
-            <select className="admin-select" defaultValue="7" aria-label="Date range">
-              <option value="7">Last 7 days</option>
+            <select className="admin-select" value={workflowRange} onChange={(event) => onWorkflowRangeChange(event.target.value)} aria-label="Workflows date range">
+              {[5, 15, 20].map((days) => <option key={days} value={days}>Last {days} Working Days</option>)}
             </select>
           </div>
           {data?.attendance ? (
-            <AttendanceChart data={data.attendance} />
+            <AttendanceChart data={data.attendance} dates={data.attendanceDates} />
           ) : (
             <p className="admin-note">Attendance data will appear here once the metrics API is connected.</p>
           )}
@@ -358,21 +363,22 @@ function OverviewPage({ user, data, go }) {
             </button>
           </div>
           <div className="admin-attention-list">
-            {[
-              ["plane", "tone-blue", "Invitations awaiting response", "Employees who haven't set their password yet", a?.invitations, "employees"],
-              ["alert", "tone-red", "Attendance exceptions", "Require HR review", a?.exceptions, "exceptions"],
-              ["calendar", "tone-amber", "Schedule assignments", "Employees without an active schedule", a?.schedules, "schedules"],
-              ["laptop", "tone-blue", "Asset returns", "Devices pending return", a?.assets, "assets"],
-            ].map(([icon, tone, title, sub, count, target]) => (
-              <button key={title} type="button" className="admin-attention-item" onClick={() => go(target)}>
+            {(data?.attentionItems || []).filter((item) => item.count > 0).length ? (data.attentionItems || []).filter((item) => item.count > 0).map((item) => {
+              const labels = {
+                invitations: ["plane", "tone-blue", "Invitations awaiting response", "Valid invitations that have not been accepted", "employees"],
+                exceptions: ["alert", "tone-red", "Attendance exceptions", "Require HR review", "exceptions"],
+                schedules: ["calendar", "tone-amber", "Schedule assignments", "Active employees without an active schedule", "schedules"],
+                assets: ["laptop", "tone-blue", "Asset returns", "Devices currently assigned", "assets"],
+              };
+              const [icon, tone, title, sub, target] = labels[item.key] || [];
+              return (
+              <button key={item.key} type="button" className="admin-attention-item" onClick={() => go(target)}>
                 <span className={`admin-attention-icon ${tone}`}><Icon name={icon} size={20} /></span>
-                <span className="admin-attention-copy">
-                  <strong>{title}</strong>
-                  <small>{sub}</small>
-                </span>
-                <span className={`admin-count-pill ${tone}`}>{count ?? "—"}</span>
+                <span className="admin-attention-copy"><strong>{title}</strong><small>{sub}</small></span>
+                <span className={`admin-count-pill ${tone}`}>{item.count}</span>
               </button>
-            ))}
+            );
+            }) : <p className="admin-note">No outstanding administrative items.</p>}
           </div>
         </section>
       </div>
@@ -468,6 +474,7 @@ export default function AdminDashboard({ user, onLogout }) {
   const [hrOpen, setHrOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [data, setData] = useState(SHOW_DEMO_DATA ? DEMO : null);
+  const [workflowRange, setWorkflowRange] = useState("5");
 
   const displayName = user?.full_name || user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "Admin";
   const roleLabel = user?.role ? user.role.charAt(0) + user.role.slice(1).toLowerCase() : "Admin";
@@ -480,11 +487,11 @@ export default function AdminDashboard({ user, onLogout }) {
     if (SHOW_DEMO_DATA) return undefined;
     let cancelled = false;
     apiClient
-      .get(METRICS_ENDPOINT)
+      .get(`${METRICS_ENDPOINT}?working_days=${workflowRange}`)
       .then((res) => !cancelled && res && setData(res))
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [workflowRange]);
 
   const [title, subtitle] = PAGE_META[section];
   // "departments" / "schedules" (used by Overview shortcuts) live inside Company Settings
@@ -492,8 +499,17 @@ export default function AdminDashboard({ user, onLogout }) {
 
   function renderPage() {
     switch (section) {
-      case "overview": return <OverviewPage user={user} data={data} go={setSection} />;
+      case "overview": return <OverviewPage user={user} data={data} go={setSection} workflowRange={workflowRange} onWorkflowRangeChange={setWorkflowRange} />;
       case "employees": return <AdminEmployees />;
+      case "people": return <MyPeople onLeaderboard={() => setSection("leaderboard")} onRemoteWork={() => setSection("remote-work")} onLeave={() => setSection("leave")} />;
+      case "leaderboard": return <Leaderboard user={user} />;
+      case "remote-work": return <RemoteWork user={user} />;
+      case "hr-roles": return <HrRolesPage onAddHr={() => setHrOpen(true)} />;
+      case "company":
+      case "departments": return <AdminCompanySettings key={section} initialTab="departments" />;
+      case "schedules": return <AdminCompanySettings key={section} initialTab="schedules" />;
+      case "schedule-assignments": return <AdminCompanySettings key={section} initialTab="schedule-assignments" hideTabs />;
+      case "assets": return <HRAssets />;
       case "people": return <MyPeople />;
       case "hr-roles":
         return (

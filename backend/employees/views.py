@@ -4,6 +4,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from rest_framework_simplejwt.token_blacklist.models import (
     BlacklistedToken,
     OutstandingToken,
@@ -14,6 +16,56 @@ from accounts.permissions import IsHROrAdmin
 from accounts.services.audit import record_audit_event
 from accounts.services.invitations import create_or_resend_invitation
 from employees.models import Employee
+from django.utils import timezone
+from hr_operations.models import LeaveRequest, RemoteWorkRequest
+
+
+class EmployeeDirectoryView(APIView):
+    """Company directory with a deliberately limited, non-sensitive projection."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rows = Employee.objects.filter(employment_status=Employee.EmploymentStatus.ACTIVE).select_related(
+            "department", "designation", "manager"
+        ).order_by("first_name", "last_name", "id")
+        return Response([{
+            "id": row.pk,
+            "employee_code": row.employee_code,
+            "first_name": row.first_name,
+            "last_name": row.last_name,
+            "department_name": row.department.name,
+            "designation_title": row.designation.title,
+            "manager_name": (f"{row.manager.first_name} {row.manager.last_name}".strip() if row.manager_id else ""),
+              "date_of_joining": row.date_of_joining,
+            "employment_status": row.employment_status,
+        } for row in rows])
+
+
+class EmployeeDirectoryOverviewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.localdate()
+        active = Employee.objects.filter(employment_status=Employee.EmploymentStatus.ACTIVE)
+        total = active.count()
+        on_leave = LeaveRequest.objects.filter(
+            employee__employment_status=Employee.EmploymentStatus.ACTIVE,
+            status=LeaveRequest.Status.APPROVED,
+            start_date__lte=today, end_date__gte=today,
+        ).values("employee_id").distinct().count()
+        joiners = active.filter(date_of_joining__gte=today.replace(day=1), date_of_joining__lte=today).count()
+        remote_work = RemoteWorkRequest.objects.filter(
+            employee__employment_status=Employee.EmploymentStatus.ACTIVE,
+            work_date=today, status=RemoteWorkRequest.Status.APPROVED,
+        ).count()
+        return Response({
+            "total_employees": total,
+            "departments": active.values("department_id").distinct().count(),
+            "new_joiners_this_month": joiners,
+            "on_leave_today": on_leave,
+            "work_from_home_today": remote_work,
+            "work_from_home_available": True,
+        })
 from employees.serializers import (
     EmployeeSerializer,
     EmploymentStatusTransitionSerializer,

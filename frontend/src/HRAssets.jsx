@@ -25,7 +25,7 @@ import {
 import "./HRPages.css";
 
 const TYPE_ICON = { Laptop: "laptop", Desktop: "laptop", Monitor: "laptop", Mobile: "bell", Tablet: "laptop", Accessory: "gear" };
-const DEVICE_TYPES = ["Laptop", "Desktop", "Monitor", "Mobile", "Tablet", "Accessory"];
+const DEVICE_TYPES = ["Laptop", "Desktop", "Mobile", "Tablet", "Accessory", "Other"];
 
 const fmt = formatAssetDate;
 
@@ -53,7 +53,7 @@ function AssignDrawer({ device, employees, onClose, onAssigned }) {
     try {
       await apiClient.post(
         ASSET_ENDPOINTS.assign(device.id),
-        assignPayload({ employee, date, expectedReturn: ret, location, notes }),
+        assignPayload({ assetId: device.id, employee, notes }),
       );
       setMsg("Device assigned.");
       onAssigned();
@@ -212,7 +212,6 @@ function RegisterDrawer({ onClose, onRegistered }) {
 }
 
 function ReturnDrawer({ device, assignment, loading, onClose, onReturned }) {
-  const [date, setDate] = useState(todayISO());
   const [condition, setCondition] = useState("Good");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -223,14 +222,9 @@ function ReturnDrawer({ device, assignment, loading, onClose, onReturned }) {
     setMsg("");
     setErr("");
     if (!assignment) { setErr("No active assignment was found for this device."); return; }
-    if (!date) { setErr("Please choose the return date."); return; }
-    if (assignment.assignedDate && date < assignment.assignedDate) {
-      setErr("The return date cannot be before the assignment date.");
-      return;
-    }
     setBusy(true);
     try {
-      await apiClient.post(ASSET_ENDPOINTS.returnAsset(assignment.id), returnPayload({ date, condition, notes: notes.trim() }));
+      await apiClient.post(ASSET_ENDPOINTS.returnAsset(assignment.id), returnPayload({ condition, notes: notes.trim() }));
       setMsg("Device returned.");
       onReturned();
     } catch (e) {
@@ -256,8 +250,7 @@ function ReturnDrawer({ device, assignment, loading, onClose, onReturned }) {
           </div>
         </div>
 
-        <label className="hrp-label" htmlFor="rt-date">Return Date *</label>
-        <input id="rt-date" type="date" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
+        <p className="admin-note">The return timestamp is recorded by the server.</p>
         <label className="hrp-label" htmlFor="rt-cond">Condition on Return</label>
         <select id="rt-cond" value={condition} onChange={(e) => setCondition(e.target.value)}>
           {RETURN_CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -298,8 +291,16 @@ export default function HRAssets() {
     setLoading(true);
     setError("");
     try {
-      const res = await apiClient.get(ASSET_ENDPOINTS.assets);
-      setDevices(getArrayResponse(res).map(normalizeAsset));
+      const [assetResult, assignmentResult] = await Promise.all([
+        apiClient.get(ASSET_ENDPOINTS.assets),
+        apiClient.get(`${ASSET_ENDPOINTS.assignments}?active=true`),
+      ]);
+      const assignments = getArrayResponse(assignmentResult);
+      const currentByAsset = new Map(assignments.map((assignment) => [String(assignment.asset), assignment]));
+      setDevices(getArrayResponse(assetResult).map((asset) => normalizeAsset({
+        ...asset,
+        current_assignment: currentByAsset.get(String(asset.id)) || null,
+      })));
     } catch (e) {
       setDevices([]);
       setError(getErrorMessage(e, "Could not load devices."));

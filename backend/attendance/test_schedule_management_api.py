@@ -69,6 +69,33 @@ class ScheduleManagementApiTests(APITestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertTrue(any(item["id"] == self.schedule.pk for item in response.data))
 
+    def test_hr_can_create_structured_schedule_using_an_active_break_policy(self):
+        response = self.client.post("/api/attendance/schedules/", {
+            "name": "Created schedule", "start_time": "08:30", "end_time": "17:30",
+            "workdays": ["MON", "TUE", "WED", "THU", "FRI"], "timezone": "Asia/Kolkata",
+            "late_grace_minutes": 7, "break_policy_id": self.policy.pk, "is_active": True,
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["break_policy"]["id"], self.policy.pk)
+        self.assertEqual(response.data["workdays"], ["MON", "TUE", "WED", "THU", "FRI"])
+
+    def test_assigned_schedule_configuration_is_immutable_but_can_be_deactivated(self):
+        changed = self.client.patch(
+            f"/api/attendance/schedules/{self.schedule.pk}/",
+            {"start_time": "10:00"}, format="json",
+        )
+        self.assertEqual(changed.status_code, 400, changed.data)
+
+        removed = self.client.delete(f"/api/attendance/schedules/{self.schedule.pk}/")
+        self.assertEqual(removed.status_code, 204)
+        self.schedule.refresh_from_db()
+        self.assertFalse(self.schedule.is_active)
+        self.assertTrue(EmployeeScheduleAssignment.objects.filter(pk=self.assignment.pk).exists())
+
+    def test_manager_or_employee_cannot_read_break_policy_config(self):
+        self.client.force_authenticate(self.employee_user)
+        self.assertEqual(self.client.get("/api/attendance/break-policies/").status_code, 403)
+
     def test_employee_cannot_list_schedules_or_assignments(self):
         self.client.force_authenticate(self.employee_user)
         self.assertEqual(self.client.get("/api/attendance/schedules/").status_code, 403)

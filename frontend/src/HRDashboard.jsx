@@ -4,6 +4,8 @@ import { userDisplayName } from "./auth/userDisplay";
 import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
 import MyPeople from "./MyPeople";
+import Leaderboard, { MyRecognitionSummary } from "./Leaderboard";
+import RemoteWork from "./RemoteWork";
 import HREmployeeManagement from "./HREmployeeManagement";
 import HREmployeeOnboarding from "./HREmployeeOnboarding";
 import HRAssets from "./HRAssets";
@@ -27,6 +29,8 @@ import "./HRPages.css"; // Employee Management / Onboarding / Assets / Settings 
 const NAV = [
   { id: "overview", label: "Overview", icon: "home" },
   { id: "people", label: "My People", icon: "people" },
+  { id: "leaderboard", label: "Leaderboard", icon: "flame" },
+  { id: "remote-work", label: "Remote Work", icon: "home" },
   { id: "employees", label: "Employees", icon: "users" },
   { id: "onboarding", label: "Onboarding", icon: "userplus" },
   { id: "attendance", label: "Attendance & Breaks", icon: "clock" },
@@ -43,6 +47,8 @@ const NAV = [
 const PAGE_META = {
   overview: ["HR Dashboard", "Manage people, attendance, leave and more."],
   people: ["My People", "Explore your organization, connect with colleagues and celebrate achievements."],
+  leaderboard: ["Good Habits & Leaderboard", "Recognize positive, verified work habits across the company."],
+  "remote-work": ["Remote Work", "Review work location requests."],
   employees: ["Employee Management", "Manage employees, assign managers, update details and control access."],
   onboarding: ["Employee Onboarding", "Add a new employee to your organization and send an invitation."],
   attendance: ["Attendance Overview", "View today's attendance, break activity and the last 7 days at a glance."],
@@ -396,7 +402,9 @@ function HRDashboard({ user, onLogout }) {
       case "overview":
         return <OverviewPage name={name} stats={stats} departments={departments} go={setSection} />;
       case "people":
-        return <MyPeople canAdd onAdd={() => setSection("onboarding")} />;
+        return <MyPeople canAdd onAdd={() => setSection("onboarding")} onLeaderboard={() => setSection("leaderboard")} onRemoteWork={() => setSection("remote-work")} onLeave={() => setSection("leave")} />;
+      case "leaderboard": return <Leaderboard user={user} />;
+      case "remote-work": return <RemoteWork user={user} />;
       case "employees":
         return <HREmployeeManagement onAdd={() => setSection("onboarding")} />;
       case "onboarding":
@@ -410,7 +418,7 @@ function HRDashboard({ user, onLogout }) {
       case "settings":
         return <HRSettings />;
       case "profile":
-        return <HRProfile user={user} />;
+        return <><MyRecognitionSummary /><HRProfile user={user} /></>;
       case "leave":
         return <HRLeave />;
       default:

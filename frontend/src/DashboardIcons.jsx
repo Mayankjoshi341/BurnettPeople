@@ -1,3 +1,4 @@
+/* eslint react-refresh/only-export-components: off */
 /* Shared inline SVG icons (no extra package needed).
    Superset of the old file: every icon used by Admin, Employee, MyPeople and the new admin pages. */
 export const ICONS = {

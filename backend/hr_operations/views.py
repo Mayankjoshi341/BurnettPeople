@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -10,7 +10,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.models import User
+from accounts.models import AuditEvent, User
+from accounts.services.audit import record_audit_event
 from employees.models import Employee
 from hr_operations.ai_providers import AIProviderError, generate_leave_draft
 from hr_operations.models import (
@@ -22,6 +23,7 @@ from hr_operations.models import (
     LeaveRequestAllocation,
     LeaveType,
     Notification,
+    RemoteWorkRequest,
 )
 from hr_operations.permissions import is_hr_or_admin, require_hr_or_admin
 from hr_operations.serializers import (
@@ -57,6 +59,69 @@ def _linked_employee(user):
         return Employee.objects.select_related("manager", "manager__user", "user").get(user=user)
     except Employee.DoesNotExist as exc:
         raise PermissionDenied("Your account is not linked to an employee profile.") from exc
+
+
+class RemoteWorkRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if is_hr_or_admin(request.user):
+            rows = RemoteWorkRequest.objects.select_related("employee", "employee__department", "employee__manager")
+        else:
+            employee = _linked_employee(request.user)
+            if request.user.role == User.Role.MANAGER:
+                rows = RemoteWorkRequest.objects.filter(employee__manager=employee)
+            else:
+                rows = RemoteWorkRequest.objects.filter(employee=employee)
+            rows = rows.select_related("employee", "employee__department", "employee__manager")
+        return Response([{
+            "id": row.pk, "employee_id": row.employee_id,
+            "employee_name": f"{row.employee.first_name} {row.employee.last_name}".strip(),
+            "department": row.employee.department.name, "work_date": row.work_date,
+            "status": row.status, "reason": row.reason if row.employee.user_id == request.user.id or is_hr_or_admin(request.user) else "",
+            "decided_at": row.decided_at, "decision_comment": row.decision_comment,
+        } for row in rows.order_by("-work_date", "-id")[:500]])
+
+    def post(self, request):
+        employee = _linked_employee(request.user)
+        try:
+            work_date = date.fromisoformat(str(request.data.get("work_date", "")))
+        except ValueError as exc:
+            raise ValidationError({"work_date": "Enter a valid YYYY-MM-DD date."}) from exc
+        if work_date < timezone.localdate():
+            raise ValidationError({"work_date": "Remote-work requests must be for today or a future date."})
+        reason = str(request.data.get("reason", "")).strip()
+        if len(reason) > 240:
+            raise ValidationError({"reason": "Use 240 characters or fewer."})
+        row, created = RemoteWorkRequest.objects.get_or_create(
+            employee=employee, work_date=work_date, defaults={"reason": reason}
+        )
+        if not created:
+            raise ValidationError({"work_date": "A remote-work request already exists for this date."})
+        return Response({"id": row.pk, "work_date": row.work_date, "status": row.status}, status=status.HTTP_201_CREATED)
+
+
+class RemoteWorkDecisionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        row = get_object_or_404(RemoteWorkRequest.objects.select_for_update().select_related("employee", "employee__manager"), pk=pk)
+        if is_hr_or_admin(request.user):
+            pass
+        else:
+            approver = _linked_employee(request.user)
+            if request.user.role != User.Role.MANAGER or row.employee.manager_id != approver.pk:
+                raise PermissionDenied("Only the employee's manager, HR, or Admin may decide this request.")
+        decision = request.data.get("status")
+        if row.status != RemoteWorkRequest.Status.PENDING or decision not in {"APPROVED", "REJECTED"}:
+            raise ValidationError({"status": "Only pending requests may be approved or rejected."})
+        row.status = decision
+        row.decided_by = request.user
+        row.decided_at = timezone.now()
+        row.decision_comment = str(request.data.get("comment", ""))[:240]
+        row.save(update_fields=["status", "decided_by", "decided_at", "decision_comment"])
+        return Response({"id": row.pk, "status": row.status, "decided_at": row.decided_at})
 
 
 def _release_reservations(leave_request, *, consume=False):
@@ -247,7 +312,10 @@ class LeaveRequestListCreateView(APIView):
                 queryset = queryset.filter(employee_id=employee_id)
         elif getattr(request.user, "role", None) == User.Role.MANAGER:
             manager_employee = _linked_employee(request.user)
-            queryset = queryset.filter(Q(employee=manager_employee) | Q(employee__manager=manager_employee))
+            if request.query_params.get("team_only", "false").lower() in {"true", "1"}:
+                queryset = queryset.filter(employee__manager=manager_employee)
+            else:
+                queryset = queryset.filter(Q(employee=manager_employee) | Q(employee__manager=manager_employee))
         else:
             employee = _linked_employee(request.user)
             queryset = queryset.filter(employee=employee)
@@ -324,6 +392,12 @@ class LeaveRequestListCreateView(APIView):
                     leave_request=leave_request, balance=balance, days_count=days
                 )
             notify_leave_submitted(leave_request)
+            record_audit_event(
+                action=AuditEvent.Action.LEAVE_SUBMITTED, actor=request.user,
+                subject_user=locked_employee.user, subject_email=locked_employee.user.email,
+                object_type="leave_request", object_id=leave_request.pk,
+                metadata={"leave_type": leave_type.code, "start_date": start_date.isoformat(), "end_date": end_date.isoformat()},
+            )
 
         leave_request = LeaveRequest.objects.select_related("employee", "leave_type", "decided_by").get(pk=leave_request.pk)
         return Response(LeaveRequestReadSerializer(leave_request).data, status=status.HTTP_201_CREATED)
@@ -375,6 +449,13 @@ class LeaveDecisionView(APIView):
             leave_request.decision_comment = serializer.validated_data.get("comment", "").strip()
             leave_request.save(update_fields=["status", "decided_by", "decided_at", "decision_comment", "updated_at"])
             notify_leave_decision(leave_request)
+            action = (AuditEvent.Action.LEAVE_APPROVED if self.decision_status == LeaveRequest.Status.APPROVED
+                      else AuditEvent.Action.LEAVE_REJECTED)
+            record_audit_event(
+                action=action, actor=request.user, subject_user=leave_request.employee.user,
+                subject_email=leave_request.employee.user.email, object_type="leave_request",
+                object_id=leave_request.pk, metadata={"leave_type": leave_request.leave_type.code},
+            )
         leave_request = LeaveRequest.objects.select_related("employee", "leave_type", "decided_by").get(pk=leave_request.pk)
         return Response(LeaveRequestReadSerializer(leave_request).data)
 
@@ -409,6 +490,11 @@ class LeaveCancelView(APIView):
             leave_request.decision_comment = serializer.validated_data.get("comment", "").strip()
             leave_request.save(update_fields=["status", "decided_by", "decided_at", "decision_comment", "updated_at"])
             notify_leave_decision(leave_request)
+            record_audit_event(
+                action=AuditEvent.Action.LEAVE_CANCELLED, actor=request.user,
+                subject_user=leave_request.employee.user, subject_email=leave_request.employee.user.email,
+                object_type="leave_request", object_id=leave_request.pk,
+            )
         return Response(LeaveRequestReadSerializer(leave_request).data)
 
 
@@ -448,6 +534,9 @@ class AssetListCreateView(APIView):
             item = serializer.save(created_by=request.user)
         except IntegrityError as exc:
             raise ValidationError("The asset tag or serial number already exists.") from exc
+        record_audit_event(action=AuditEvent.Action.ASSET_REGISTERED, actor=request.user,
+                           object_type="asset", object_id=item.pk,
+                           metadata={"asset_tag": item.asset_tag, "category": item.category})
         return Response(AssetSerializer(item).data, status=status.HTTP_201_CREATED)
 
 
@@ -463,6 +552,9 @@ class AssetDetailView(APIView):
             item = serializer.save()
         except IntegrityError as exc:
             raise ValidationError("The asset tag or serial number already exists.") from exc
+        record_audit_event(action=AuditEvent.Action.ASSET_UPDATED, actor=request.user,
+                           object_type="asset", object_id=item.pk,
+                           metadata={"asset_tag": item.asset_tag})
         return Response(AssetSerializer(item).data)
 
 
@@ -483,6 +575,9 @@ class AssetStatusView(APIView):
                 raise ValidationError("Retired assets cannot be reactivated through this endpoint.")
             asset.status = new_status
             asset.save(update_fields=["status", "updated_at"])
+            record_audit_event(action=AuditEvent.Action.ASSET_STATUS_CHANGED, actor=request.user,
+                               object_type="asset", object_id=asset.pk,
+                               metadata={"status": new_status})
         return Response(AssetSerializer(asset).data)
 
 
@@ -541,6 +636,12 @@ class AssetAssignmentListCreateView(APIView):
                     target_type="asset_assignment",
                     target_id=assignment.pk,
                 )
+                record_audit_event(
+                    action=AuditEvent.Action.ASSET_ASSIGNED, actor=request.user,
+                    subject_user=employee.user, subject_email=employee.user.email,
+                    object_type="asset_assignment", object_id=assignment.pk,
+                    metadata={"asset_tag": asset.asset_tag, "employee_code": employee.employee_code},
+                )
         except Asset.DoesNotExist as exc:
             raise ValidationError({"asset_id": "Asset not found."}) from exc
         except Employee.DoesNotExist as exc:
@@ -581,6 +682,12 @@ class AssetReturnView(APIView):
                 message=f"{asset.name} ({asset.asset_tag}) was marked as returned.",
                 target_type="asset_assignment",
                 target_id=assignment.pk,
+            )
+            record_audit_event(
+                action=AuditEvent.Action.ASSET_RETURNED, actor=request.user,
+                subject_user=assignment.employee.user, subject_email=assignment.employee.user.email,
+                object_type="asset_assignment", object_id=assignment.pk,
+                metadata={"asset_tag": asset.asset_tag, "employee_code": assignment.employee.employee_code},
             )
         assignment = AssetAssignment.objects.select_related("asset", "employee", "assigned_by", "returned_by").get(pk=assignment.pk)
         return Response(AssetAssignmentReadSerializer(assignment).data)

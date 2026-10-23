@@ -39,7 +39,7 @@ const DEMO_EMP = [
 
 function EmployeePanel({ person, index, managers, onClose, onSave }) {
   const [tab, setTab] = useState("overview");
-  const [manager, setManager] = useState(person.manager === "—" ? "" : person.manager);
+  const [manager, setManager] = useState(person.managerId == null ? "" : String(person.managerId));
   const [designation, setDesignation] = useState(person.designation === "—" ? "" : person.designation);
   const [status, setStatus] = useState(STATUSES.includes(person.status) ? person.status : "Active");
   const [busy, setBusy] = useState("");
@@ -103,9 +103,9 @@ function EmployeePanel({ person, index, managers, onClose, onSave }) {
             <div className="ap-inline">
               <select id="mg-mgr" value={manager} onChange={(e) => setManager(e.target.value)}>
                 <option value="">Select manager</option>
-                {managers.filter((m) => m !== person.name).map((m) => <option key={m} value={m}>{m}</option>)}
+                {managers.filter((m) => String(m.id) !== String(person.id)).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
-              <button type="button" className="admin-primary-button" disabled={!manager || manager === person.manager || Boolean(busy)} onClick={() => run("Manager", { manager })}>
+              <button type="button" className="admin-primary-button" disabled={manager === String(person.managerId ?? "") || Boolean(busy)} onClick={() => run("Manager", { manager: manager || null })}>
                 {busy === "Manager" ? "…" : "Assign"}
               </button>
             </div>
@@ -161,8 +161,7 @@ export default function AdminEmployees({ canAdd = false, onAdd }) {
   const uniq = (key) => [...new Set(rows.map((r) => r[key]).filter((v) => v && v !== "—"))].sort();
   const depts = uniq("department");
   const desigs = uniq("designation");
-  const mgrs = uniq("manager");
-  const people = uniq("name");
+  const mgrs = rows.filter((r) => r.id != null && (r.role === "MANAGER" || /manager|lead|head|director/i.test(r.designation)));
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -274,7 +273,6 @@ export default function AdminEmployees({ canAdd = false, onAdd }) {
                       <td><Pill>{r.status}</Pill></td>
                       <td>
                         <div className="ap-actions">
-                          <button type="button" className="ap-icon-btn" onClick={() => setSelectedId(r.id)} aria-label={`View ${r.name}`}><Icon name="eye" size={15} /></button>
                           <button type="button" className="ap-icon-btn" onClick={() => setSelectedId(r.id)} aria-label={`Manage ${r.name}`}><Icon name="edit" size={15} /></button>
                         </div>
                       </td>
@@ -291,7 +289,7 @@ export default function AdminEmployees({ canAdd = false, onAdd }) {
         </section>
 
         {selected && (
-          <EmployeePanel key={selected.id} person={selected} index={selectedIndex} managers={people} onClose={() => setSelectedId(null)} onSave={save} />
+          <EmployeePanel key={selected.id} person={selected} index={selectedIndex} managers={mgrs} onClose={() => setSelectedId(null)} onSave={save} />
         )}
       </div>
     </div>

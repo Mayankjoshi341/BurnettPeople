@@ -2,6 +2,7 @@
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import status
@@ -13,10 +14,14 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsHROrAdmin
 from attendance.reporting_serializers import WorkScheduleReadSerializer
+from attendance.reporting_serializers import BreakPolicyReadSerializer
+from attendance.models import BreakPolicy
+from attendance.break_policy_serializers import BreakPolicyWriteSerializer
 from attendance.schedule_management_serializers import (
     ScheduleAssignmentCreateSerializer,
     ScheduleAssignmentEndSerializer,
     ScheduleAssignmentReadSerializer,
+    WorkScheduleWriteSerializer,
 )
 from employees.models import Employee, EmployeeScheduleAssignment, WorkSchedule
 
@@ -64,6 +69,88 @@ class WorkScheduleListView(APIView):
             schedules = schedules.filter(is_active=True, break_policy__is_active=True)
 
         return Response(WorkScheduleReadSerializer(schedules, many=True).data)
+
+    def post(self, request):
+        serializer = WorkScheduleWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            schedule = serializer.save()
+        except IntegrityError as exc:
+            raise ValidationError("A schedule with this name already exists.") from exc
+        schedule = WorkSchedule.objects.select_related("break_policy").prefetch_related("break_policy__rules").get(pk=schedule.pk)
+        return Response(WorkScheduleReadSerializer(schedule).data, status=status.HTTP_201_CREATED)
+
+
+class WorkScheduleDetailView(APIView):
+    """Edit unused schedule definitions; retain history once assignments begin."""
+    permission_classes = [IsAuthenticated, IsHROrAdmin]
+
+    def patch(self, request, pk):
+        try:
+            schedule = WorkSchedule.objects.select_related("break_policy").get(pk=pk)
+        except WorkSchedule.DoesNotExist as exc:
+            raise NotFound("Work schedule not found.") from exc
+        serializer = WorkScheduleWriteSerializer(schedule, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        try:
+            schedule = serializer.save()
+        except IntegrityError as exc:
+            raise ValidationError("A schedule with this name already exists.") from exc
+        schedule = WorkSchedule.objects.select_related("break_policy").prefetch_related("break_policy__rules").get(pk=schedule.pk)
+        return Response(WorkScheduleReadSerializer(schedule).data)
+
+    def delete(self, request, pk):
+        try:
+            schedule = WorkSchedule.objects.get(pk=pk)
+        except WorkSchedule.DoesNotExist as exc:
+            raise NotFound("Work schedule not found.") from exc
+        if schedule.is_active:
+            schedule.is_active = False
+            schedule.save(update_fields=["is_active", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BreakPolicyListView(APIView):
+    permission_classes = [IsAuthenticated, IsHROrAdmin]
+
+    def get(self, request):
+        include_inactive = request.query_params.get("include_inactive", "false").lower() in {"true", "1"}
+        policies = BreakPolicy.objects.all() if include_inactive else BreakPolicy.objects.filter(is_active=True)
+        policies = policies.prefetch_related("rules")
+        return Response(BreakPolicyReadSerializer(policies, many=True).data)
+
+    def post(self, request):
+        serializer = BreakPolicyWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            policy = serializer.save()
+        except IntegrityError as exc:
+            raise ValidationError({"code": "That policy code and version already exists, or a rule conflicts with this version."}) from exc
+        return Response(BreakPolicyReadSerializer(policy).data, status=status.HTTP_201_CREATED)
+
+
+class BreakPolicyDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsHROrAdmin]
+
+    def get_object(self, pk):
+        return get_object_or_404(BreakPolicy.objects.prefetch_related("rules"), pk=pk)
+
+    def patch(self, request, pk):
+        policy = self.get_object(pk)
+        serializer = BreakPolicyWriteSerializer(policy, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        try:
+            policy = serializer.save()
+        except IntegrityError as exc:
+            raise ValidationError({"code": "That policy code and version already exists."}) from exc
+        return Response(BreakPolicyReadSerializer(policy).data)
+
+    def delete(self, request, pk):
+        policy = self.get_object(pk)
+        if policy.is_active:
+            policy.is_active = False
+            policy.save(update_fields=["is_active", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ScheduleAssignmentListCreateView(APIView):
