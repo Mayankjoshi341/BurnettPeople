@@ -18,7 +18,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
     "corsheaders", "rest_framework", "rest_framework_simplejwt.token_blacklist",
     "accounts", "organization", "employees", "core", "attendance", "expenses",
-    "hr_operations", "recognition",
+    "hr_operations", "recognition", "status_updates",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware", "django.contrib.sessions.middleware.SessionMiddleware",

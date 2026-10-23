@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-
+import StatusUpdates from "./StatusUpdates";
 import apiClient from "./api/client";
 import { Icon } from "./DashboardIcons";
 import HRAssets from "./HRAssets";
@@ -7,6 +7,8 @@ import AdminAuditLogs from "./AdminAuditLogs";
 import AdminCompanySettings from "./AdminCompanySettings";
 import AdminEmployees from "./AdminEmployees";
 import AdminReports from "./AdminReports";
+import AdminHRManagers from "./AdminHRManagers"; // NEW: HR & Manager Overview
+import AdminLeave from "./AdminLeave"; // NEW: Leave Management
 import MyPeople from "./MyPeople";
 import Leaderboard from "./Leaderboard";
 import RemoteWork from "./RemoteWork";
@@ -37,6 +39,7 @@ const NAV = [
   { id: "leaderboard", label: "Leaderboard", icon: "flame" },
   { id: "remote-work", label: "Remote Work", icon: "home" },
   { id: "hr-roles", label: "HR & Roles", icon: "shield" },
+  { id: "hr-roles", label: "HR & Manager Management", icon: "shield" },
   { id: "company", label: "Company Settings", icon: "building" },
   { id: "schedule-assignments", label: "Schedule Assignments", icon: "calendar" },
   { id: "attendance", label: "Attendance & Breaks", icon: "clock" },
@@ -46,6 +49,7 @@ const NAV = [
   { id: "reports", label: "Reports", icon: "file" },
   { id: "audit", label: "Audit Logs", icon: "lock" },
   { id: "notifications", label: "Notifications", icon: "bell", badge: true },
+  { id: "status-updates", label: "Work Status Updates", icon: "file" },
   // { id: "settings", label: "Settings", icon: "gear" },
 ];
 
@@ -56,18 +60,23 @@ const PAGE_META = {
   leaderboard: ["Good Habits & Leaderboard", "Recognize positive, verified work habits across the company."],
   "remote-work": ["Remote Work", "Review approved work location requests."],
   "hr-roles": ["HR & Roles", "Onboard HR users and review access roles."],
+  "hr-roles": ["HR & Manager Overview", "Manage HR employees, assign managers, and view reporting structure."],
   company: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
   departments: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
   schedules: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
   "schedule-assignments": ["Schedule Assignments", "Assign effective-dated work schedules and review assignment history."],
   attendance: ["Attendance & Breaks", "Track check-ins, breaks and hours."],
   exceptions: ["Exception Reviews", "Resolve attendance exceptions."],
-  leave: ["Leave Management", "Approve and track leave requests."],
+  leave: ["Leave Management", "Review and manage HR leave requests and manager leave requests."],
   assets: ["Assets & Devices", "Manage company devices and equipment, and track their status."],
   reports: ["Reports", "View attendance, leave and workplace activity reports by date."],
   audit: ["Audit Logs", "Track all activities and changes happening in the system. Monitor user actions, data changes, and security events."],
   notifications: ["Notifications", "Everything that needs your attention."],
   settings: ["Settings", "Company preferences and configuration."],
+  "status-updates": [
+  "Work Status Updates",
+  "Record completed work, current focus, testing, tech stack and blockers.",
+],
 };
 
 /* ------------------------------------------------------------------
@@ -447,46 +456,6 @@ function OverviewPage({ user, data, go, workflowRange, onWorkflowRangeChange }) 
   );
 }
 
-function HrRolesPage({ onAddHr }) {
-  return (
-    <section className="admin-panel">
-      <div className="admin-page-intro">
-        <div>
-          <h2>HR &amp; Roles</h2>
-          <p>Start HR onboarding and see what each role can do.</p>
-        </div>
-        <button type="button" className="admin-primary-button" onClick={onAddHr}>
-          <Icon name="userplus" size={18} /> Add HR user
-        </button>
-      </div>
-
-      <div className="admin-information-panel">
-        <span className="admin-info-icon">i</span>
-        <div>
-          <strong>How access works</strong>
-          <p>Admins create HR users. HR users onboard employees. Everyone gets an email to set their own password.</p>
-        </div>
-      </div>
-
-      <h3 className="admin-subheading">System roles</h3>
-      <div className="admin-role-grid">
-        {[
-          ["role-admin", "Admin", "Full control of users, roles and settings."],
-          ["role-hr", "HR", "Onboard employees, manage schedules and leave."],
-          ["role-manager", "Manager", "Review team attendance and requests."],
-          ["role-employee", "Employee", "View own profile, attendance and leave."],
-        ].map(([cls, title, text]) => (
-          <article key={title}>
-            <span className={`role-dot ${cls}`} />
-            <strong>{title}</strong>
-            <p>{text}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function ComingSoon({ title }) {
   return (
     <section className="admin-panel admin-settings-placeholder">
@@ -541,8 +510,23 @@ export default function AdminDashboard({ user, onLogout }) {
       case "schedules": return <AdminCompanySettings key={section} initialTab="schedules" />;
       case "schedule-assignments": return <AdminCompanySettings key={section} initialTab="schedule-assignments" hideTabs />;
       case "assets": return <HRAssets />;
+      case "people": return <MyPeople />;
+      case "hr-roles":
+        return (
+          <AdminHRManagers
+            adminName={displayName}
+            onAddHr={() => setHrOpen(true)}
+            onOpenAudit={() => setSection("audit")}
+          />
+        );
+      case "company":
+      case "departments": return <AdminCompanySettings key={section} initialTab="departments" />;
+      case "schedules": return <AdminCompanySettings key={section} initialTab="schedules" />;
+      case "leave": return <AdminLeave />;
+      case "assets": return <AdminAssets />;
       case "reports": return <AdminReports />;
       case "audit": return <AdminAuditLogs />;
+      case "status-updates": return <StatusUpdates user={user} />;
       default: return <ComingSoon title={title} />;
     }
   }
