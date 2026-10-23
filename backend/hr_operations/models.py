@@ -158,6 +158,29 @@ class LeaveRequestAllocation(models.Model):
         ]
 
 
+class RemoteWorkRequest(models.Model):
+    """A dated remote-work request; only approved records feed WFH summaries."""
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    employee = models.ForeignKey("employees.Employee", on_delete=models.PROTECT, related_name="remote_work_requests")
+    work_date = models.DateField(db_index=True)
+    reason = models.CharField(max_length=240, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="remote_work_decisions")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_comment = models.CharField(max_length=240, blank=True)
+
+    class Meta:
+        ordering = ["-work_date", "-submitted_at"]
+        constraints = [models.UniqueConstraint(fields=["employee", "work_date"], name="uniq_remote_work_employee_day")]
+        indexes = [models.Index(fields=["status", "work_date"], name="remote_status_day_idx")]
+
+
 class Asset(models.Model):
     class Category(models.TextChoices):
         LAPTOP = "LAPTOP", "Laptop"
@@ -179,6 +202,8 @@ class Asset(models.Model):
     manufacturer = models.CharField(max_length=100, blank=True)
     model = models.CharField(max_length=100, blank=True)
     serial_number = models.CharField(max_length=120, blank=True, default="")
+    purchase_date = models.DateField(null=True, blank=True)
+    location = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.AVAILABLE)
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(

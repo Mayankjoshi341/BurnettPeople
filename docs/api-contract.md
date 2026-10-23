@@ -273,11 +273,47 @@ Validation errors return HTTP `400`. An unauthenticated request returns
 HTTP `401`. A signed-in non-Admin user returns HTTP `403`.
 
 
-## Endpoints not currently implemented
+## Operational endpoint groups
 
-There are currently no registered operational REST endpoints for attendance, leave requests, work-schedule management, breaks, or tea/expenses. The existing attendance and expenses modules primarily contain models/placeholders. Do not label dashboard metrics for those features as live or invent routes until business rules, authorization, serializers, views, URLs and tests are defined.
+The repository registers operational APIs in addition to employee onboarding:
+
+- Attendance: `/api/attendance/me/`, `schedule/me/`, `check-in/`, `check-out/`, `breaks/start/`, `breaks/end/`, `history/`, `records/`, `summary/`, `schedules/`, `assignments/`, and `exceptions/` (see `backend/attendance/urls.py`).
+- Leave: `/api/leave/types/`, `holidays/`, `balances/me/`, `balances/`, `requests/`, `requests/pending-approvals/`, and request `approve/`, `reject/`, `cancel/` actions.
+- Assets: `/api/assets/me/`, `/api/assets/`, `/api/assets/assignments/` and assignment `return/` actions.
+- Notifications: `/api/notifications/`, `read-all/`, and notification `read/` actions.
+- AI leave drafts: `/api/ai/leave-draft/`. This returns a draft only; it does not submit a leave request.
+
+See [integration-audit.md](integration-audit.md) for unavailable aggregate dashboards, settings mutations, and audit browsing routes. Do not show fabricated metrics when these endpoints are unavailable.
 
 ## Migration note
 
-This patch adds serializers/views/URLs and CORS configuration only. It introduces no database model fields or tables and requires no new Django migration. Keep existing migrations and PostgreSQL data unchanged.
+The integration patch contains additive migrations for audit events, organization lookups, score/achievement history, and remote-work requests. It does not reset or drop existing tables. Apply migrations with the configured deployment database only after the normal release review.
 
+
+## Admin overview metrics
+
+`GET /api/admin/metrics/?working_days=5|15|20` (HR/Admin only) returns persisted employee counts, active-today attendance count, latest weekday attendance series and dates, and actionable invitation, exception, schedule-gap, and active asset-assignment counts. `working_days` defaults to 5 and rejects values outside 5, 15, or 20. Attendance series counts recorded attendance records; it does not infer absences.
+
+## Recognition
+
+- `GET /api/recognition/leaderboard/?period=all|week|month&department=<id>&search=<text>&page=<n>&page_size=<n>`: authenticated company rankings with competition ties, points, department and earned badge names.
+- `GET /api/recognition/departments/`: active department names for the leaderboard filter; available to eligible leaderboard roles.
+- `GET /api/recognition/me/`: own points, eligible on-time streak, earned achievements and recent points history.
+- `GET /api/recognition/achievements/`: achievement catalog and the signed-in user's earned state.
+- `GET /api/recognition/rules/`: HR/Admin scoring-rule configuration.
+- `PATCH /api/recognition/rules/` with `{ "rules": [{ "id": 1, "points": 10, "active": true, "eligibility": {} }] }`: HR/Admin only; points are bounded 0–100.
+- `GET|POST /api/recognition/learning/`: active activities for participants; HR/Admin may create an activity.
+- `POST /api/recognition/learning/<id>/enroll/`, `POST /api/recognition/learning/completions/<id>/submit/`, and `POST /api/recognition/learning/completions/<id>/verify/`: participant enrollment/submission and HR/Admin/direct-manager verification. Only verified completions award configured points.
+- `GET|POST /api/recognition/challenges/`: open challenges; HR/Admin may create a challenge with a valid date range.
+- `POST /api/recognition/challenges/<id>/join/`, `POST /api/recognition/challenges/participations/<id>/submit/`, and `POST /api/recognition/challenges/participations/<id>/verify/`: participant enrollment/submission and HR/Admin/direct-manager verification. Only verified completions award configured points.
+- `GET /api/recognition/review-queue/`: pending learning and challenge submissions scoped to HR/Admin or a manager's direct reports.
+
+Scoring includes server-verified on-time check-in and complete attendance, plus reviewed learning and team-challenge completion. The score ledger uses unique source-event keys. Seeded achievement definitions include five- and ten-day streaks, monthly punctuality, complete attendance, learning, team contribution, and meaningful month-over-month improvement. Approved leave is excluded from attendance eligibility.
+
+## Remote work
+
+- `GET /api/remote-work/requests/`: HR/Admin see all; managers see direct reports; employees see their own requests.
+- `POST /api/remote-work/requests/` with `{ "work_date": "YYYY-MM-DD", "reason": "optional" }`: creates one request per employee/date.
+- `POST /api/remote-work/requests/<id>/decision/` with `{ "status": "APPROVED|REJECTED", "comment": "optional" }`: direct manager, HR, or Admin only.
+- Only approved requests count in `GET /api/employees/directory/overview/` for the current company-local date.
+- `GET /api/employees/directory/` returns a limited active directory projection for authenticated roles.

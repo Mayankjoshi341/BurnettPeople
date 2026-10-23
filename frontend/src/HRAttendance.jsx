@@ -29,6 +29,7 @@ import "./HRAttendance.css";
    }
    ------------------------------------------------------------------ */
 const ATTENDANCE_OVERVIEW_ENDPOINT = null; // e.g. "/attendance/overview/"
+const EMPTY_ROWS = [];
 
 const TOTAL_DEMO = 142;
 const DEMO_WEEK_COUNTS = [
@@ -63,8 +64,6 @@ function lastSevenDates() {
   }
   return out;
 }
-const isoOf = (d) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const shortDay = (d) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 const weekday = (d) => d.toLocaleDateString("en-GB", { weekday: "short" });
 
@@ -185,7 +184,7 @@ export default function HRAttendance({ onOpenExceptions }) {
     ? { ...data.summary, total: employees.length || data.summary.total }
     : { total: employees.length || null };
 
-  const rows = data?.rows || [];
+  const rows = data?.rows || EMPTY_ROWS;
   const departments = useMemo(() => [...new Set(rows.map((r) => r.department).filter((d) => d && d !== "—"))].sort(), [rows]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

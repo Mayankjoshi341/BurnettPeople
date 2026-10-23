@@ -169,6 +169,19 @@ class AuditEvent(models.Model):
             "PASSWORD_RESET_COMPLETED",
             "Password reset completed",
         )
+        LEAVE_SUBMITTED = "LEAVE_SUBMITTED", "Leave submitted"
+        LEAVE_APPROVED = "LEAVE_APPROVED", "Leave approved"
+        LEAVE_REJECTED = "LEAVE_REJECTED", "Leave rejected"
+        LEAVE_CANCELLED = "LEAVE_CANCELLED", "Leave cancelled"
+        ATTENDANCE_CHECKED_IN = "ATTENDANCE_CHECKED_IN", "Attendance checked in"
+        ATTENDANCE_CHECKED_OUT = "ATTENDANCE_CHECKED_OUT", "Attendance checked out"
+        ATTENDANCE_EXCEPTION_SUBMITTED = "ATTENDANCE_EXCEPTION_SUBMITTED", "Attendance exception submitted"
+        ATTENDANCE_EXCEPTION_REVIEWED = "ATTENDANCE_EXCEPTION_REVIEWED", "Attendance exception reviewed"
+        ASSET_REGISTERED = "ASSET_REGISTERED", "Asset registered"
+        ASSET_UPDATED = "ASSET_UPDATED", "Asset updated"
+        ASSET_ASSIGNED = "ASSET_ASSIGNED", "Asset assigned"
+        ASSET_RETURNED = "ASSET_RETURNED", "Asset returned"
+        ASSET_STATUS_CHANGED = "ASSET_STATUS_CHANGED", "Asset status changed"
 
     # Who performed the action. Null means a system-generated event
     # or an actor who has since been deleted.

@@ -2,21 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import apiClient from "./api/client";
 import { Icon } from "./DashboardIcons";
-import { SHOW_DEMO_DATA, getErrorMessage } from "./dashboardUtils";
+import { SHOW_DEMO_DATA, getArrayResponse, getErrorMessage } from "./dashboardUtils";
 import { Av, MiniStat, Pill, downloadCsv } from "./AdminUi";
 
 /* Backend: GET /attendance/reports/daily/?date=YYYY-MM-DD  ->
    { summary:{total,present,absent,leave,wfh}, metrics:[{icon,value,label}],
      employees:[{name,code,department,check_in,check_out,work_hours,status,location,remarks}] } */
 const REPORT_ENDPOINT = "/attendance/reports/daily/";
-
-const HOLIDAYS = [
-  ["2026-10-02", "Gandhi Jayanti"],
-  ["2026-10-11", "Dussehra"],
-  ["2026-11-12", "Diwali"],
-  ["2026-12-25", "Christmas"],
-];
-const HOLIDAY_SET = new Set(HOLIDAYS.map((h) => h[0]));
 
 const DEMO_REPORT = {
   summary: { total: 46, present: 40, absent: 3, leave: 2, wfh: 1 },
@@ -44,7 +36,7 @@ const pad = (n) => String(n).padStart(2, "0");
 const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const sameDay = (a, b) => isoOf(a) === isoOf(b);
 
-function Calendar({ selected, onSelect }) {
+function Calendar({ selected, onSelect, holidayDates }) {
   const [cursor, setCursor] = useState(new Date(selected.getFullYear(), selected.getMonth(), 1));
   const today = new Date();
   const cells = useMemo(() => {
@@ -68,7 +60,7 @@ function Calendar({ selected, onSelect }) {
         {cells.map((d, i) => {
           if (!d) return <span key={`e${i}`} />;
           const weekend = d.getDay() === 0 || d.getDay() === 6;
-          const holiday = HOLIDAY_SET.has(isoOf(d));
+          const holiday = holidayDates.has(isoOf(d));
           const cls = ["day", sameDay(d, selected) && "sel", sameDay(d, today) && "today", holiday && "hol", weekend && "we"].filter(Boolean).join(" ");
           return (
             <button key={d.getDate()} type="button" className={cls} onClick={() => onSelect(d)} aria-pressed={sameDay(d, selected)}>
@@ -86,7 +78,7 @@ function Calendar({ selected, onSelect }) {
 }
 
 function Donut({ summary }) {
-  const parts = [["Present", summary.present, "#14a37f"], ["Absent", summary.absent, "#f26d6d"], ["On Leave", summary.leave, "#f5c04d"], ["Work From Home", summary.wfh, "#4e9bea"]];
+  const parts = [["Present", summary.present, "#14a37f"], ["Absent", summary.absent, "#f26d6d"], ["On Leave", summary.leave, "#f5c04d"], ["Work From Home", summary.wfh ?? 0, "#4e9bea"]];
   const total = parts.reduce((n, p) => n + p[1], 0) || 1;
   const R = 52, C = 2 * Math.PI * R;
   let offset = 0;
@@ -105,7 +97,7 @@ function Donut({ summary }) {
       </svg>
       <ul className="ap-donut-legend">
         {parts.map(([label, n, color]) => (
-          <li key={label}><i style={{ background: color }} /><span>{label}</span><b>{n}</b><em>{Math.round((n / (summary.total || 1)) * 100)}%</em></li>
+          <li key={label}><i style={{ background: color }} /><span>{label}</span><b>{label === "Work From Home" && summary.wfh == null ? "—" : n}</b><em>{label === "Work From Home" && summary.wfh == null ? "Not tracked" : `${Math.round((n / (summary.total || 1)) * 100)}%`}</em></li>
         ))}
       </ul>
     </div>
@@ -119,8 +111,20 @@ export default function AdminReports() {
   const [status, setStatus] = useState("ALL");
   const [dept, setDept] = useState("ALL");
   const [live, setLive] = useState({ iso: "", data: null, error: "" });
+  const [holidays, setHolidays] = useState([]);
+
+  useEffect(() => {
+    if (SHOW_DEMO_DATA) return undefined;
+    let off = false;
+    apiClient.get("/leave/holidays/")
+      .then((r) => { if (!off) setHolidays(getArrayResponse(r).filter((h) => h.is_active)); })
+      .catch(() => { if (!off) setHolidays([]); });
+    return () => { off = true; };
+  }, []);
 
   const iso = isoOf(date);
+  const holidayDates = useMemo(() => new Set(holidays.map((h) => h.date)), [holidays]);
+  const upcomingHolidays = useMemo(() => holidays.filter((h) => h.date >= isoOf(new Date())).slice(0, 4), [holidays]);
   useEffect(() => {
     if (SHOW_DEMO_DATA) return undefined;
     let off = false;
@@ -144,7 +148,7 @@ export default function AdminReports() {
 
   const dayName = date.toLocaleDateString("en-GB", { weekday: "long" });
   const longDate = date.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-  const isOff = date.getDay() === 0 || date.getDay() === 6 || HOLIDAY_SET.has(iso);
+  const workCoverage = s ? (s.total ? "Scheduled employees" : "No scheduled employees") : "Schedule unavailable";
 
   function exportCsv() {
     downloadCsv(`daily-report-${iso}.csv`, ["Employee", "ID", "Department", "Check-in", "Check-out", "Work Hours", "Status", "Location", "Remarks"], rows.map((e) => [e.name, e.code, e.department, e.check_in, e.check_out, e.work_hours, e.status, e.location, e.remarks]));
@@ -156,21 +160,22 @@ export default function AdminReports() {
         <section className="admin-panel">
           <div className="admin-panel-heading"><div><h2>Select Date</h2></div>
             <button type="button" className="admin-secondary-button ap-small" onClick={() => setDate(new Date())}>Today</button></div>
-          <Calendar key={iso.slice(0, 7)} selected={date} onSelect={setDate} />
+          <Calendar key={iso.slice(0, 7)} selected={date} onSelect={setDate} holidayDates={holidayDates} />
         </section>
         <section className="admin-panel">
           <div className="admin-panel-heading"><div><h2>Upcoming Holidays</h2></div></div>
           <ul className="ap-holidays">
-            {HOLIDAYS.map(([d, name]) => {
+            {upcomingHolidays.map(({ date: d, name }) => {
               const dt = new Date(`${d}T00:00:00`);
               return (
                 <li key={d}>
                   <span className="ap-hdate"><b>{pad(dt.getDate())}</b>{dt.toLocaleDateString("en-GB", { month: "short" })}</span>
-                  <span><strong>{name}</strong><small>National Holiday</small></span>
+                  <span><strong>{name}</strong><small>Configured company holiday</small></span>
                   <span className="ap-pill red">Holiday</span>
                 </li>
               );
             })}
+            {upcomingHolidays.length === 0 && <li className="admin-note">No upcoming holidays are configured.</li>}
           </ul>
         </section>
       </aside>
@@ -180,7 +185,7 @@ export default function AdminReports() {
           <div className="admin-panel-heading">
             <div className="ap-person big">
               <span className="ap-dev-icon big"><Icon name="calendar" size={22} /></span>
-              <div><h2>Daily Report</h2><p>{longDate} ({dayName}) <span className={`ap-pill ${isOff ? "amber" : "green"}`}>{isOff ? "Off Day" : "Working Day"}</span></p></div>
+              <div><h2>Daily Report</h2><p>{longDate} ({dayName}) <span className={`ap-pill ${s?.total ? "green" : "amber"}`}>{workCoverage}</span></p></div>
             </div>
             <button type="button" className="admin-secondary-button" onClick={exportCsv} disabled={!rows.length}><Icon name="download" size={16} /> Export</button>
           </div>
@@ -195,7 +200,7 @@ export default function AdminReports() {
                 <MiniStat icon="check" tone="green" value={s.present} label="Present" note={`${Math.round((s.present / (s.total || 1)) * 100)}%`} />
                 <MiniStat icon="clock" tone="red" value={s.absent} label="Absent" note={`${Math.round((s.absent / (s.total || 1)) * 100)}%`} />
                 <MiniStat icon="plane" tone="amber" value={s.leave} label="On Leave" note={`${Math.round((s.leave / (s.total || 1)) * 100)}%`} />
-                <MiniStat icon="home" tone="blue" value={s.wfh} label="Work From Home" note={`${Math.round((s.wfh / (s.total || 1)) * 100)}%`} />
+                <MiniStat icon="home" tone="blue" value={s.wfh} label="Work From Home" note={s.wfh == null ? "Not tracked by attendance records" : `${Math.round((s.wfh / (s.total || 1)) * 100)}%`} />
               </div>
 
               <div className="ap-tabs" role="tablist">
@@ -236,7 +241,7 @@ export default function AdminReports() {
             {rows.length === 0 ? <p className="admin-note">No employees match your filters.</p> : (
               <div className="admin-table-wrap">
                 <table className="admin-table ap-table">
-                  <thead><tr><th>#</th><th>EMPLOYEE</th><th>ID</th><th>DEPARTMENT</th><th>CHECK-IN</th><th>CHECK-OUT</th><th>WORK HOURS</th><th>STATUS</th><th>LOCATION</th><th>REMARKS</th></tr></thead>
+                  <thead><tr><th>#</th><th>EMPLOYEE</th><th>ID</th><th>DEPARTMENT</th><th>CHECK-IN</th><th>CHECK-OUT</th><th>WORK HOURS</th><th>STATUS</th><th>ASSIGNED LOCATION</th><th>REMARKS</th></tr></thead>
                   <tbody>
                     {rows.map((e, i) => (
                       <tr key={e.code || i}>

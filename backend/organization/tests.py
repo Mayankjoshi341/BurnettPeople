@@ -64,3 +64,34 @@ class OrganizationLookupAPITests(APITestCase):
         response = self.client.get("/api/organization/work-locations/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item["name"] for item in response.data], ["Indore"])
+
+    def test_hr_can_create_update_and_deactivate_department_without_deleting_history(self):
+        self.client.force_authenticate(user=self.hr_user)
+        created = self.client.post("/api/organization/departments/", {
+            "name": "People Operations", "code": " people ", "description": "HR team",
+        }, format="json")
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED, created.data)
+        self.assertEqual(created.data["code"], "PEOPLE")
+
+        updated = self.client.patch(
+            f"/api/organization/departments/{created.data['id']}/",
+            {"description": "Expanded HR team"}, format="json",
+        )
+        self.assertEqual(updated.status_code, status.HTTP_200_OK, updated.data)
+        deactivated = self.client.delete(f"/api/organization/departments/{created.data['id']}/")
+        self.assertEqual(deactivated.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertTrue(Department.objects.filter(pk=created.data["id"], is_active=False).exists())
+
+    def test_hr_can_create_designations_and_validate_work_location_time_zone(self):
+        self.client.force_authenticate(user=self.hr_user)
+        title = self.client.post("/api/organization/designations/", {"title": "People Partner", "grade": "L2"}, format="json")
+        self.assertEqual(title.status_code, status.HTTP_201_CREATED, title.data)
+        invalid = self.client.post("/api/organization/work-locations/", {
+            "name": "Invalid Zone Office", "timezone": "Not/AZone",
+        }, format="json")
+        self.assertEqual(invalid.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_employee_cannot_write_organization_settings(self):
+        self.client.force_authenticate(user=self.employee_user)
+        response = self.client.post("/api/organization/departments/", {"name": "Private", "code": "PRV"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

@@ -10,14 +10,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.models import User
+from accounts.models import AuditEvent, User
 from accounts.permissions import IsHROrAdmin
+from accounts.services.audit import record_audit_event
 from attendance.models import AttendanceException, AttendanceRecord, BreakPolicyRule, BreakSession
 from attendance.serializers import (
     AttendanceExceptionCreateSerializer, AttendanceExceptionReviewSerializer,
     AttendanceExceptionSerializer, AttendanceRecordSerializer,
 )
 from employees.models import Employee, EmployeeScheduleAssignment
+from recognition.services import (
+    record_checkin_awards, record_checkout_award, current_streak,
+    award_streak_achievement, evaluate_periodic_achievements,
+)
 
 
 def _employee_for_user(user):
@@ -136,6 +141,13 @@ class CheckInView(APIView):
                 f"Check-in was {minutes_late} minute(s) after scheduled shift start; "
                 f"grace period is {schedule.late_grace_minutes} minute(s).",
             )
+        record_checkin_awards(record)
+        record_audit_event(
+            action=AuditEvent.Action.ATTENDANCE_CHECKED_IN, actor=request.user,
+            subject_user=request.user, subject_email=request.user.email,
+            object_type="attendance", object_id=record.pk,
+            metadata={"work_date": work_date.isoformat()},
+        )
         return Response({"attendance": AttendanceRecordSerializer(record).data}, status=status.HTTP_201_CREATED)
 
 
@@ -156,6 +168,15 @@ class CheckOutView(APIView):
         record.check_out = now
         record.status = AttendanceRecord.Status.CLOSED
         record.save(update_fields=["check_out", "status", "updated_at"])
+        record_checkout_award(record)
+        award_streak_achievement(request.user, current_streak(request.user), now=now)
+        evaluate_periodic_achievements(employee, today=record.work_date)
+        record_audit_event(
+            action=AuditEvent.Action.ATTENDANCE_CHECKED_OUT, actor=request.user,
+            subject_user=request.user, subject_email=request.user.email,
+            object_type="attendance", object_id=record.pk,
+            metadata={"work_date": record.work_date.isoformat()},
+        )
         return Response({"attendance": AttendanceRecordSerializer(record).data})
 
 
@@ -276,6 +297,12 @@ class AttendanceExceptionListCreateView(APIView):
             exception_type=serializer.validated_data["exception_type"],
             reason=serializer.validated_data["reason"],
         )
+        record_audit_event(
+            action=AuditEvent.Action.ATTENDANCE_EXCEPTION_SUBMITTED, actor=request.user,
+            subject_user=employee.user, subject_email=employee.user.email,
+            object_type="attendance_exception", object_id=exception.pk,
+            metadata={"exception_type": exception.exception_type},
+        )
         return Response(AttendanceExceptionSerializer(exception).data, status=status.HTTP_201_CREATED)
 
 
@@ -296,4 +323,10 @@ class AttendanceExceptionReviewView(APIView):
         exception.reviewed_by = request.user
         exception.reviewed_at = timezone.now()
         exception.save(update_fields=["review_status", "review_comment", "reviewed_by", "reviewed_at"])
+        record_audit_event(
+            action=AuditEvent.Action.ATTENDANCE_EXCEPTION_REVIEWED, actor=request.user,
+            subject_user=exception.employee.user, subject_email=exception.employee.user.email,
+            object_type="attendance_exception", object_id=exception.pk,
+            metadata={"review_status": exception.review_status},
+        )
         return Response(AttendanceExceptionSerializer(exception).data)

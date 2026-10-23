@@ -131,6 +131,22 @@ class AttendanceReportingApiTests(APITestCase):
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["employee"], self.employee.pk)
 
+    def test_hr_daily_report_uses_real_scheduled_employee_and_attendance_records(self):
+        self._record(self.today)
+        self.client.force_authenticate(self.hr_user)
+        response = self.client.get("/api/attendance/reports/daily/", {"date": self.today.isoformat()})
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["summary"]["total"], 1)
+        self.assertEqual(response.data["summary"]["present"], 1)
+        self.assertIsNone(response.data["summary"]["wfh"])
+        self.assertEqual(response.data["employees"][0]["status"], "Present")
+
+    def test_employee_cannot_access_company_daily_report(self):
+        self.client.force_authenticate(self.employee_user)
+        response = self.client.get("/api/attendance/reports/daily/")
+        self.assertEqual(response.status_code, 403)
+
     def test_invalid_report_filters_return_400(self):
         self.client.force_authenticate(self.hr_user)
         invalid_date = self.client.get("/api/attendance/records/?start_date=not-a-date")

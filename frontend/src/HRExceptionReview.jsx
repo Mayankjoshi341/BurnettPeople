@@ -22,7 +22,7 @@ import "./HRAttendance.css";
    Review: POST {EXCEPTIONS_ENDPOINT}{id}/review/   body: { decision: "APPROVED" | "REJECTED", remarks }
    (Tell me your real URLs / field names and I will align this file.)
    ------------------------------------------------------------------ */
-const EXCEPTIONS_ENDPOINT = null; // e.g. "/attendance/exceptions/review/"
+const EXCEPTIONS_ENDPOINT = "/attendance/exceptions/";
 const reviewUrl = (id) => `${EXCEPTIONS_ENDPOINT}${id}/review/`;
 
 /* Tabs -> which exception types they show */
@@ -76,7 +76,7 @@ function normalizeException(r, i) {
   const type = r.exception_label || r.exception_type || "Other";
   return {
     id: r.id ?? i,
-    name: r.employee_name || r.employee?.name || r.employee_full_name || "—",
+    name: r.employee_name || r.employee?.name || r.employee_full_name || (r.employee_code ? `Employee ${r.employee_code}` : "—"),
     code: r.employee_code || r.employee?.employee_code || "—",
     department: r.department_name || r.employee?.department_name || "—",
     type: r.exception_label ? r.exception_label : prettyType(type),
@@ -132,7 +132,7 @@ function ReviewPanel({ item, onClose, onDone }) {
     if (item.demo || !EXCEPTIONS_ENDPOINT) { setErr("This is sample data. Set EXCEPTIONS_ENDPOINT in HRExceptionReview.jsx to save decisions."); return; }
     setBusy(true);
     try {
-      await callApi("post", reviewUrl(item.id), { decision, remarks: remarks.trim() });
+      await callApi("patch", reviewUrl(item.id), { review_status: decision, review_comment: remarks.trim() });
       setMsg(decision === "APPROVED" ? "Exception approved." : "Exception rejected.");
       onDone();
     } catch (e) {

@@ -22,6 +22,8 @@ from hr_operations.views import (
     NotificationListView,
     NotificationReadAllView,
     NotificationReadView,
+    RemoteWorkDecisionView,
+    RemoteWorkRequestView,
 )
 
 app_name = "hr_operations"
@@ -50,4 +52,6 @@ urlpatterns = [
     path("notifications/read-all/", NotificationReadAllView.as_view(), name="notification-read-all"),
     path("notifications/<int:pk>/read/", NotificationReadView.as_view(), name="notification-read"),
     path("ai/leave-draft/", LeaveDraftView.as_view(), name="ai-leave-draft"),
+    path("remote-work/requests/", RemoteWorkRequestView.as_view(), name="remote-work-requests"),
+    path("remote-work/requests/<int:pk>/decision/", RemoteWorkDecisionView.as_view(), name="remote-work-decision"),
 ]

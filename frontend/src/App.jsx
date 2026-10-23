@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -8,21 +8,21 @@ import {
   useLocation,
 } from "react-router-dom";
 
-import TypingHeadline from "./TypingHeadline";
-import AdminDashboard from "./AdminDashboard";
-import HRDashboard from "./HRDashboard";
-import EmployeeDashboard from "./EmployeeDashboard";
-import ManagerDashboard from "./ManagerDashboard";
-import EmployeeList from "./EmployeeList";
-import EmployeeForm from "./EmployeeForm";
-import EmployeeProfile from "./EmployeeProfile";
-import EmployeeActivation from "./EmployeeActivation";
+const TypingHeadline = lazy(() => import("./TypingHeadline"));
+const AdminDashboard = lazy(() => import("./AdminDashboard"));
+const HRDashboard = lazy(() => import("./HRDashboard"));
+const EmployeeDashboard = lazy(() => import("./EmployeeDashboard"));
+const ManagerDashboard = lazy(() => import("./ManagerDashboard"));
+const EmployeeList = lazy(() => import("./EmployeeList"));
+const EmployeeForm = lazy(() => import("./EmployeeForm"));
+const EmployeeProfile = lazy(() => import("./EmployeeProfile"));
+const EmployeeActivation = lazy(() => import("./EmployeeActivation"));
 import apiClient from "./api/client";
-import PasswordResetPage from "./pages/PasswordResetPage";
-import NotFoundPage from "./pages/NotFoundPage";
-import ForbiddenPage from "./pages/ForbiddenPage";
-import ServerErrorPage from "./pages/ServerErrorPage";
-import RouteErrorBoundary from "./components/RouteErrorBoundary";
+const PasswordResetPage = lazy(() => import("./pages/PasswordResetPage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const ForbiddenPage = lazy(() => import("./pages/ForbiddenPage"));
+const ServerErrorPage = lazy(() => import("./pages/ServerErrorPage"));
+const RouteErrorBoundary = lazy(() => import("./components/RouteErrorBoundary"));
 import { ROLE_HOME, homeForUser } from "./config/roles";
 
 import "./App.css";
@@ -490,7 +490,9 @@ function App() {
   return (
     <BrowserRouter>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <GuardedRoutes user={user} onLogin={handleLogin} onLogout={handleLogout} />
+      <Suspense fallback={<div className="app-boot" role="status">Loading Burnett People…</div>}>
+        <GuardedRoutes user={user} onLogin={handleLogin} onLogout={handleLogout} />
+      </Suspense>
     </BrowserRouter>
   );
 }

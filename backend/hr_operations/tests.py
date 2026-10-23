@@ -5,7 +5,7 @@ from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from accounts.models import User
+from accounts.models import AuditEvent, User
 from employees.models import Employee
 from hr_operations.models import (
     Asset,
@@ -89,6 +89,9 @@ class Day4WorkflowAPITests(APITestCase):
         self.assertEqual(self.balance.reserved_days, 2)
         self.assertEqual(self.balance.used_days, 0)
         self.assertEqual(LeaveRequestAllocation.objects.count(), 1)
+        self.assertTrue(AuditEvent.objects.filter(
+            action=AuditEvent.Action.LEAVE_SUBMITTED, object_id=str(response.data["id"]),
+        ).exists())
 
     def test_holiday_is_excluded_from_working_day_count(self):
         CompanyHoliday.objects.create(date=self.start, name="Company shutdown")
@@ -128,6 +131,9 @@ class Day4WorkflowAPITests(APITestCase):
         self.assertEqual(self.balance.reserved_days, 0)
         self.assertEqual(self.balance.used_days, 2)
         self.assertTrue(Notification.objects.filter(recipient=self.employee_user, kind=Notification.Kind.LEAVE_APPROVED).exists())
+        self.assertTrue(AuditEvent.objects.filter(
+            action=AuditEvent.Action.LEAVE_APPROVED, object_id=str(request_id), actor=self.manager_user,
+        ).exists())
 
     def test_unrelated_manager_cannot_decide_an_employee_request(self):
         created = self.submit()
@@ -147,15 +153,20 @@ class Day4WorkflowAPITests(APITestCase):
         self.assertEqual(response.data["status"], LeaveRequest.Status.CANCELLED)
         self.assertEqual(self.balance.reserved_days, 0)
         self.assertEqual(self.balance.used_days, 0)
+        self.assertTrue(AuditEvent.objects.filter(
+            action=AuditEvent.Action.LEAVE_CANCELLED, object_id=str(created.data["id"]),
+        ).exists())
 
     def test_asset_duplicate_assignment_is_prevented_and_return_keeps_history(self):
         self.client.force_authenticate(self.hr)
         created_asset = self.client.post(
             "/api/assets/",
-            {"asset_tag": "LAP-D4-001", "name": "ThinkPad Test", "category": "LAPTOP", "serial_number": "SN-D4-001"},
+            {"asset_tag": "LAP-D4-001", "name": "ThinkPad Test", "category": "LAPTOP", "serial_number": "SN-D4-001", "purchase_date": timezone.localdate().isoformat(), "location": "Indore Office"},
             format="json",
         )
         self.assertEqual(created_asset.status_code, 201, created_asset.data)
+        self.assertEqual(created_asset.data["location"], "Indore Office")
+        self.assertEqual(created_asset.data["purchase_date"], timezone.localdate().isoformat())
         asset_id = created_asset.data["id"]
         assignment = self.client.post(
             "/api/assets/assignments/",
@@ -178,6 +189,12 @@ class Day4WorkflowAPITests(APITestCase):
         self.assertIsNotNone(AssetAssignment.objects.get(pk=assignment.data["id"]).returned_at)
         self.assertEqual(Asset.objects.get(pk=asset_id).status, Asset.Status.AVAILABLE)
         self.assertEqual(AssetAssignment.objects.filter(asset_id=asset_id).count(), 1)
+        self.assertTrue(AuditEvent.objects.filter(
+            action=AuditEvent.Action.ASSET_ASSIGNED, object_id=str(assignment.data["id"]),
+        ).exists())
+        self.assertTrue(AuditEvent.objects.filter(
+            action=AuditEvent.Action.ASSET_RETURNED, object_id=str(assignment.data["id"]),
+        ).exists())
 
     def test_employee_cannot_register_assets(self):
         response = self.client.post(

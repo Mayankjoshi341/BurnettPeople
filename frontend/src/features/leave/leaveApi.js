@@ -18,12 +18,13 @@ import { getArrayResponse, getErrorMessage } from "../../dashboardUtils.js";
                                       (the AI draft NEVER submits or approves a request)
    ------------------------------------------------------------------ */
 export const LEAVE_ENDPOINTS = {
-  requests: "/leave-requests/",
-  approve: (id) => `/leave-requests/${id}/approve/`,
-  reject: (id) => `/leave-requests/${id}/reject/`,
-  balances: "/leave-balances/",
-  types: "/leave-types/",
-  draft: "/leave-messages/draft/",
+  requests: "/leave/requests/",
+  approve: (id) => `/leave/requests/${id}/approve/`,
+  reject: (id) => `/leave/requests/${id}/reject/`,
+  cancel: (id) => `/leave/requests/${id}/cancel/`,
+  balances: "/leave/balances/me/",
+  types: "/leave/types/",
+  draft: "/ai/leave-draft/",
 };
 
 const AI_DRAFT_TIMEOUT_MS = 25000;
@@ -103,7 +104,7 @@ export function normalizeLeaveBalance(raw, index = 0, typeNames = {}) {
     typeNames[String(typeId)] ||
     raw.name ||
     `Leave type ${index + 1}`;
-  const total = firstNumber(raw.total_days, raw.allocated_days, raw.allocated, raw.entitled, raw.total, raw.opening_balance);
+  const total = firstNumber(raw.total_days, raw.allocated_days, raw.allocated, raw.entitled_days, raw.entitled, raw.total, raw.opening_balance);
   const used = firstNumber(raw.used_days, raw.used, raw.taken_days, raw.taken) ?? 0;
   const remaining = firstNumber(raw.remaining_days, raw.remaining, raw.available_days, raw.available, raw.balance)
     ?? (total !== null ? total - used : null);
@@ -127,7 +128,7 @@ export function normalizeLeaveRequest(raw, index = 0, typeNames = {}) {
     "Leave";
   const start = raw.start_date || "";
   const end = raw.end_date || start;
-  const daysCount = firstNumber(raw.total_days, raw.days, raw.duration_days, raw.working_days);
+  const daysCount = firstNumber(raw.days_count, raw.total_days, raw.days, raw.duration_days, raw.working_days);
   const statusKey = String(raw.status || "PENDING").toUpperCase();
   const employee = raw.employee && typeof raw.employee === "object" ? raw.employee : {};
 
@@ -147,8 +148,8 @@ export function normalizeLeaveRequest(raw, index = 0, typeNames = {}) {
     statusKey,
     status: STATUS_LABELS[statusKey] || pretty(statusKey),
     reviewer: raw.reviewed_by_name || raw.approver_name || "",
-    reviewComment: raw.review_comment || raw.reviewer_comment || raw.decision_note || "",
-    submittedAt: raw.created_at || raw.submitted_at || "",
+    reviewComment: raw.review_comment || raw.reviewer_comment || raw.decision_comment || raw.decision_note || "",
+    submittedAt: raw.submitted_at || raw.created_at || "",
   };
 }
 
@@ -175,7 +176,7 @@ export function upcomingLeave(requests, today = toIso(new Date())) {
 
 /* ---------- data hook ---------- */
 /* Loads requests (+ optional balances and leave types). Each part fails on its own. */
-export function useLeaveData({ balances: withBalances = false, types: withTypes = false } = {}) {
+export function useLeaveData({ balances: withBalances = false, types: withTypes = false, teamOnly = false } = {}) {
   const [state, setState] = useState({
     requests: [],
     balances: [],
@@ -186,7 +187,7 @@ export function useLeaveData({ balances: withBalances = false, types: withTypes 
 
   const reload = useCallback(async () => {
     const [requestsResult, balancesResult, typesResult] = await Promise.allSettled([
-      apiClient.get(LEAVE_ENDPOINTS.requests),
+      apiClient.get(`${LEAVE_ENDPOINTS.requests}${teamOnly ? "?team_only=true" : ""}`),
       withBalances ? apiClient.get(LEAVE_ENDPOINTS.balances) : Promise.resolve(null),
       withTypes ? apiClient.get(LEAVE_ENDPOINTS.types) : Promise.resolve(null),
     ]);
@@ -214,7 +215,7 @@ export function useLeaveData({ balances: withBalances = false, types: withTypes 
       },
     });
     setLoading(false);
-  }, [withBalances, withTypes]);
+  }, [withBalances, withTypes, teamOnly]);
 
   useEffect(() => {
     void Promise.resolve().then(() => reload());
@@ -226,7 +227,7 @@ export function useLeaveData({ balances: withBalances = false, types: withTypes 
 /* ---------- actions ---------- */
 export function submitLeaveRequest({ leaveType, startDate, endDate, reason }) {
   return apiClient.post(LEAVE_ENDPOINTS.requests, {
-    leave_type: /^\d+$/.test(String(leaveType)) ? Number(leaveType) : leaveType,
+    leave_type_id: /^\d+$/.test(String(leaveType)) ? Number(leaveType) : leaveType,
     start_date: startDate,
     end_date: endDate,
     reason: reason.trim(),
@@ -252,7 +253,7 @@ export async function requestLeaveDraft({ leaveType, startDate, endDate, notes }
         leave_type: /^\d+$/.test(String(leaveType)) ? Number(leaveType) : leaveType,
         start_date: startDate,
         end_date: endDate,
-        notes: notes || "",
+        reason: notes || "",
       },
       { signal: controller.signal },
     );

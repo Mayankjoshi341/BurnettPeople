@@ -59,6 +59,5 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": env("DJANGO_LOG_LEVEL", default="INFO")},
     "loggers": {
         "django.security": {"handlers": ["console"], "level": "WARNING", "propagate": False},
-        "performance_management": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }

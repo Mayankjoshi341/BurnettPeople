@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Icon } from "./DashboardIcons";
-import { SHOW_DEMO_DATA } from "./dashboardUtils";
-import { Av, Pager, downloadCsv, useResource } from "./AdminUi";
+import { getArrayResponse, getErrorMessage, SHOW_DEMO_DATA } from "./dashboardUtils";
+import apiClient from "./api/client";
+import { Av, Pager, downloadCsv } from "./AdminUi";
 import "./AdminAudit.css";
 
 /* Backend: GET /audit/logs/ -> array (or { results: [] }) of log rows.
@@ -78,14 +79,16 @@ function normalize(r) {
 }
 
 const titleOf = (r) => (r.action === "Login" ? "User Login" : `${r.action} ${r.module}`);
-const rawOf = (r) =>
-  r.raw || {
-    event: r.action === "Login" ? "user_login" : `${r.module}_${r.action}`.toLowerCase().replace(/\W+/g, "_"),
-    username: (r.email || r.user).split("@")[0],
-    timestamp: new Date(r.at).toISOString(),
-    ip_address: r.ip,
-    status: r.status.toLowerCase(),
-  };
+const rawOf = (r) => r.raw || Object.fromEntries(Object.entries({
+  id: r.id,
+  created_at: r.at,
+  user_name: r.user,
+  user_email: r.email,
+  action: r.action,
+  module: r.module,
+  details: r.details,
+  status: r.status,
+}).filter(([, value]) => value !== undefined && value !== "" && value !== "—"));
 
 function Chip({ tone, icon, children }) {
   return <span className={`au-chip ${tone}`}>{icon && <Icon name={icon} size={12} />}{children}</span>;
@@ -138,7 +141,34 @@ function LogPanel({ log, onClose }) {
 }
 
 export default function AdminAuditLogs() {
-  const { rows: rawRows, loading, error } = useResource(AUDIT_ENDPOINT, DEMO_LOGS);
+  const [rawRows, setRawRows] = useState(SHOW_DEMO_DATA ? DEMO_LOGS : []);
+  const [loading, setLoading] = useState(!SHOW_DEMO_DATA);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (SHOW_DEMO_DATA) return undefined;
+    let active = true;
+    async function loadAllPages() {
+      setLoading(true);
+      setError("");
+      try {
+        const first = await apiClient.get(`${AUDIT_ENDPOINT}?page_size=200`);
+        const all = getArrayResponse(first);
+        const count = Number(first?.count ?? all.length);
+        const pages = Math.ceil(count / 200);
+        for (let page = 2; page <= pages; page += 1) {
+          const next = await apiClient.get(`${AUDIT_ENDPOINT}?page=${page}&page_size=200`);
+          all.push(...getArrayResponse(next));
+        }
+        if (active) setRawRows(all);
+      } catch (e) {
+        if (active) setError(getErrorMessage(e, "Could not load audit logs."));
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void loadAllPages();
+    return () => { active = false; };
+  }, []);
   const rows = useMemo(() => rawRows.map(normalize).sort((a, b) => String(b.at).localeCompare(String(a.at))), [rawRows]);
 
   const blank = { from: "", to: "", user: "ALL", action: "ALL", module: "ALL", status: "ALL" };

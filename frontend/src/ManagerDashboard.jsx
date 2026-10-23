@@ -5,7 +5,7 @@ import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
 import { NotConnected, StatCard, WelcomeBanner } from "./DashboardParts";
 import { SHOW_DEMO_DATA, getErrorMessage } from "./dashboardUtils";
-import { Av, Pill } from "./AdminUi";
+import { Av, Pill, useResource } from "./AdminUi";
 import { BarChart, Donut } from "./ManagerCharts";
 import { summarize, useManagerData } from "./ManagerData";
 import {
@@ -13,6 +13,8 @@ import {
   ProfilePage, ReportsPage, SchedulePage, TeamPage,
 } from "./ManagerPages";
 import MyPeople from "./MyPeople";
+import Leaderboard, { MyRecognitionSummary } from "./Leaderboard";
+import RemoteWork from "./RemoteWork";
 import { decideLeaveRequest, useLeaveData } from "./features/leave/leaveApi";
 import "./AdminPages.css";
 import "./ManagerDashboard.css";
@@ -21,6 +23,8 @@ const NAV = [
   { id: "overview", label: "Dashboard", icon: "home" },
   { id: "team", label: "My Team", icon: "users" },
   { id: "people", label: "My People", icon: "people" },
+  { id: "leaderboard", label: "Leaderboard", icon: "flame" },
+  { id: "remote-work", label: "Remote Work", icon: "home" },
   { id: "attendance", label: "Team Attendance", icon: "clock" },
   { id: "leave", label: "Team Leave", icon: "plane" },
   { id: "assets", label: "Team Assets", icon: "laptop" },
@@ -35,6 +39,8 @@ const PAGE_META = {
   overview: ["Manager Dashboard", "Your team, their growth, our success."],
   team: ["My Team", "Everyone who reports to you, with today's status."],
   people: ["My People", "Explore your organization, connect with colleagues and celebrate achievements."],
+  leaderboard: ["Good Habits & Leaderboard", "Recognize positive, verified work habits across the company."],
+  "remote-work": ["Remote Work", "Review work location requests from your team."],
   attendance: ["Team Attendance", "Who is in, out or on leave today."],
   leave: ["Team Leave", "Leave requests from your team."],
   assets: ["Team Assets", "Devices assigned to your team."],
@@ -173,10 +179,11 @@ function Overview({ data, go, onDecide, name }) {
 export default function ManagerDashboard({ user, onLogout }) {
   const name = userDisplayName(user);
   const { data: teamData, hasData, loading, error } = useManagerData();
+  const notifications = useResource("/notifications/");
   const [section, setSection] = useState("overview");
 
   /* Leave requests always come from the leave API (never from sample data). */
-  const leave = useLeaveData();
+  const leave = useLeaveData({ teamOnly: true });
   const data = useMemo(() => ({ ...teamData, leaves: leave.requests }), [teamData, leave.requests]);
   const decideLeave = async (id, action) => {
     await decideLeaveRequest(id, action);
@@ -184,21 +191,22 @@ export default function ManagerDashboard({ user, onLogout }) {
   };
   const isLeaveSection = section === "leave" || section === "approvals";
 
-  const pendingCount = leave.requests.filter((l) => l.status === "Pending").length;
   const [title, subtitle] = PAGE_META[section];
 
   function renderPage() {
     switch (section) {
       case "team": return <TeamPage data={data} />;
-      case "people": return <MyPeople />;
+      case "people": return <MyPeople onLeaderboard={() => setSection("leaderboard")} onRemoteWork={() => setSection("remote-work")} onLeave={() => setSection("leave")} />;
+      case "leaderboard": return <Leaderboard user={user} />;
+      case "remote-work": return <RemoteWork user={user} />;
       case "attendance": return <AttendancePage data={data} />;
       case "leave": return <LeavePage data={data} onDecide={decideLeave} />;
       case "assets": return <AssetsPage data={data} />;
-      case "approvals": return <LeavePage data={data} onDecide={decideLeave} pendingOnly />;
+      case "approvals": return <><LeavePage data={data} onDecide={decideLeave} pendingOnly /><TeamReviewInfo exceptions={data.exceptions} history={data.approval_history} /></>;
       case "schedule": return <SchedulePage data={data} />;
       case "reports": return <ReportsPage data={data} />;
-      case "profile": return <ProfilePage user={user} name={name} initials={userInitials(user)} roleText={roleLabel(user?.role)} data={data} />;
-      case "notifications": return <NotificationsPage data={data} />;
+      case "profile": return <><MyRecognitionSummary /><ProfilePage user={user} name={name} initials={userInitials(user)} roleText={roleLabel(user?.role)} data={data} /></>;
+      case "notifications": return <NotificationsPage notifications={notifications} />;
       default: return <Overview data={data} go={setSection} onDecide={decideLeave} name={name} />;
     }
   }
@@ -214,7 +222,7 @@ export default function ManagerDashboard({ user, onLogout }) {
       title={title}
       subtitle={subtitle}
       searchPlaceholder="Search team members, leave, attendance..."
-      unread={pendingCount}
+      unread={notifications.rows.filter((item) => !item.read_at).length}
       homePath="/manager"
       footerLabel="Manager workspace"
     >
@@ -227,7 +235,22 @@ export default function ManagerDashboard({ user, onLogout }) {
       {!SHOW_DEMO_DATA && !hasData && !loading && !error && !isLeaveSection && (
         <NotConnected title="Team data is not connected yet." text="Team, attendance and leave data will appear here once the manager API is available." />
       )}
-      {(hasData || section === "profile" || section === "people" || isLeaveSection) && renderPage()}
+      {(hasData || section === "profile" || section === "people" || section === "leaderboard" || isLeaveSection) && renderPage()}
     </DashboardShell>
+  );
+}
+
+function TeamReviewInfo({ exceptions = [], history = [] }) {
+  return (
+    <div className="ap-page">
+      <section className="admin-panel">
+        <div className="admin-panel-heading"><div><h2>Team attendance exceptions</h2><p>Submitted items for HR review. Managers have read access to this queue.</p></div></div>
+        {exceptions.length ? <ul className="mgr-activity">{exceptions.map((item) => <li key={item.id}><span className="mgr-act-icon"><Icon name="alert" size={18} /></span><span><strong>{item.employee} · {item.type}</strong><small>{item.status} · {new Date(item.submitted_at).toLocaleString()}</small></span></li>)}</ul> : <p className="admin-note">No pending team exceptions.</p>}
+      </section>
+      <section className="admin-panel">
+        <div className="admin-panel-heading"><div><h2>Approval history</h2><p>Recent decisions on direct report leave and attendance exceptions.</p></div></div>
+        {history.length ? <ul className="mgr-activity">{history.map((item) => <li key={item.id}><span className="mgr-act-icon"><Icon name="check" size={18} /></span><span><strong>{item.employee} · {item.type}: {item.status}</strong><small>{item.decided_at ? new Date(item.decided_at).toLocaleString() : "Decision time unavailable"} · {item.decided_by || "Reviewer unavailable"}</small></span></li>)}</ul> : <p className="admin-note">No team decisions recorded yet.</p>}
+      </section>
+    </div>
   );
 }

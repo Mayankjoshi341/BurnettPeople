@@ -6,7 +6,8 @@ import apiClient from "./api/client.js";
    ------------------------------------------------------------------ */
 // true  = sample numbers/charts where no API exists yet (design preview)
 // false = real data only; unconnected cards show "—" / empty states
-export const SHOW_DEMO_DATA = true;
+// Production screens must never replace unavailable API data with plausible-looking samples.
+export const SHOW_DEMO_DATA = false;
 
 // Employee list API (used by "My People" and the HR employee table)
 export const EMPLOYEES_ENDPOINT = "/employees/";

@@ -6,6 +6,8 @@ import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
 import { StatCard, MonthCalendar } from "./DashboardParts";
 import MyPeople from "./MyPeople";
+import Leaderboard, { MyRecognitionSummary } from "./Leaderboard";
+import RemoteWork from "./RemoteWork";
 import { useLeaveData, leaveMarks, upcomingLeave, dayLabel } from "./features/leave/leaveApi";
 import { LeaveApplyForm, LeaveBalanceCards, LeaveHistoryTable, LeaveStatusBadge } from "./features/leave/LeaveComponents";
 import { useMyAssets } from "./features/assets/assetApi";
@@ -30,6 +32,8 @@ const SHOW_MY_PEOPLE = true;
 const NAV = [
   { id: "overview", label: "Dashboard", icon: "home" },
   ...(SHOW_MY_PEOPLE ? [{ id: "people", label: "My People", icon: "people" }] : []),
+  { id: "leaderboard", label: "Leaderboard", icon: "flame" },
+  { id: "remote-work", label: "Remote Work", icon: "home" },
   { id: "attendance", label: "My Attendance", icon: "clock" },
   { id: "breaks", label: "Breaks", icon: "coffee" },
   { id: "leave", label: "My Leave", icon: "plane" },
@@ -42,6 +46,8 @@ const NAV = [
 const PAGE_META = {
   overview: ["My Workspace", "Your workday, your attendance, your requests and more."],
   people: ["My People", "Explore your organization and connect with colleagues."],
+  leaderboard: ["Good Habits & Leaderboard", "Recognize positive, verified work habits across the company."],
+  "remote-work": ["Remote Work", "Request a remote work day and track approval."],
   attendance: ["Attendance & Breaks", "Track your work hours, manage your breaks and keep your record."],
   breaks: ["Breaks", "Start, end and review your breaks for today."],
   leave: ["My Leave", "Plan your time off, track your balance and manage requests."],
@@ -73,16 +79,6 @@ const DEMO_POLICY = [
   ["Short Break", "15 minutes", "10:00 AM – 11:30 AM"],
   ["Lunch Break", "30 minutes", "12:00 PM – 02:00 PM"],
   ["Other Break", "10 minutes", "03:00 PM – 05:00 PM"],
-];
-/* [label, hours] - index 0 = Sunday */
-const DEMO_WEEK = [
-  ["Sun", "Off"],
-  ["Mon", "9:00 AM – 6:00 PM"],
-  ["Tue", "9:00 AM – 6:00 PM"],
-  ["Wed", "9:00 AM – 6:00 PM"],
-  ["Thu", "9:00 AM – 6:00 PM"],
-  ["Fri", "9:00 AM – 6:00 PM"],
-  ["Sat", "Off"],
 ];
 const STATUS_CLASS = {
   Approved: "status-completed",
@@ -127,6 +123,7 @@ function EmployeeDashboard({ user, onLogout }) {
   const myAssets = useMyAssets();
 
   const [attendance, setAttendance] = useState(null);
+  const [workSchedule, setWorkSchedule] = useState(null);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [myExceptions, setMyExceptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -161,10 +158,11 @@ function EmployeeDashboard({ user, onLogout }) {
   const attendanceStatus = !attendance ? "Not checked in" : attendance.check_out ? "Completed" : "Checked in";
 
   const loadDashboard = useCallback(async () => {
-    const [currentResult, historyResult, exceptionsResult] = await Promise.allSettled([
+    const [currentResult, historyResult, exceptionsResult, scheduleResult] = await Promise.allSettled([
       apiClient.get("/attendance/me/"),
       apiClient.get("/attendance/history/"),
       apiClient.get("/attendance/exceptions/"),
+      apiClient.get("/attendance/schedule/me/"),
     ]);
 
     if (currentResult.status === "fulfilled") {
@@ -188,6 +186,12 @@ function EmployeeDashboard({ user, onLogout }) {
     } else {
       setMyExceptions([]);
       setExceptionsError(getErrorMessage(exceptionsResult.reason, "Could not load your attendance requests."));
+    }
+
+    if (scheduleResult.status === "fulfilled") {
+      setWorkSchedule(scheduleResult.value?.assignment?.work_schedule || null);
+    } else {
+      setWorkSchedule(null);
     }
 
     setIsLoading(false);
@@ -471,13 +475,20 @@ function EmployeeDashboard({ user, onLogout }) {
   const scheduleCard = (
     <section className="admin-panel" aria-labelledby="sched-title">
       <div className="admin-panel-heading"><div><h2 id="sched-title">Your Schedule</h2></div></div>
-      {attendance?.schedule_name && (
+      {(workSchedule || attendance?.schedule_name) && (
         <div className="emp-info-row">
           <span className="emp-info-icon"><Icon name="clock" size={18} /></span>
-          <span><strong>Assigned Shift</strong><small>{attendance.schedule_name}</small></span>
+          <span><strong>{workSchedule?.name || "Assigned Shift"}</strong><small>{workSchedule ? `${workSchedule.start_time?.slice(0, 5) || "—"}–${workSchedule.end_time?.slice(0, 5) || "—"} · ${workSchedule.timezone}` : attendance.schedule_name}</small></span>
         </div>
       )}
-      {SHOW_DEMO_DATA ? (
+      {workSchedule ? (
+        <>
+          <div className="emp-info-row"><span className="emp-info-icon"><Icon name="calendar" size={18} /></span><span><strong>Work Days</strong><small>{(workSchedule.workdays || []).join(", ")}</small></span></div>
+          {(workSchedule.break_policy?.rules || []).filter((rule) => rule.is_active).map((rule) => (
+            <div className="emp-info-row" key={rule.id}><span className="emp-info-icon"><Icon name="coffee" size={18} /></span><span><strong>{rule.break_type_label || BREAK_LABELS[rule.break_type] || "Break"}</strong><small>{rule.duration_minutes} min · {rule.allowed_start_time?.slice(0, 5)}–{rule.allowed_end_time?.slice(0, 5)}</small></span></div>
+          ))}
+        </>
+      ) : SHOW_DEMO_DATA ? (
         DEMO_SCHEDULE.map(([icon, label, value]) => (
           <div className="emp-info-row" key={label}>
             <span className="emp-info-icon"><Icon name={icon} size={18} /></span>
@@ -589,8 +600,8 @@ function EmployeeDashboard({ user, onLogout }) {
             <span className="emp-sum-icon green"><Icon name="calendar" size={24} /></span>
             <span className="emp-sum-body">
               <small>Work Schedule</small>
-              <strong>{SHOW_DEMO_DATA ? "9:00 AM – 6:00 PM" : attendance?.schedule_name || "—"}</strong>
-              <em>{SHOW_DEMO_DATA ? "Mon – Fri · Office" : attendance?.schedule_name ? "Assigned shift" : "Shown after check-in"}</em>
+              <strong>{workSchedule ? `${workSchedule.start_time?.slice(0, 5)}–${workSchedule.end_time?.slice(0, 5)}` : attendance?.schedule_name || "—"}</strong>
+              <em>{workSchedule ? `${(workSchedule.workdays || []).join(" · ")} · ${workSchedule.timezone}` : attendance?.schedule_name ? "Assigned shift" : "No schedule assigned"}</em>
             </span>
             <Icon name="arrow" size={15} />
           </button>
@@ -698,13 +709,13 @@ function EmployeeDashboard({ user, onLogout }) {
                   <div><h2 id="ms-title">My Schedule</h2></div>
                   <button type="button" className="admin-link-button" onClick={() => setSection("attendance")}>View full schedule <Icon name="arrow" size={13} /></button>
                 </div>
-                {SHOW_DEMO_DATA ? (
+                {workSchedule?.workdays?.length ? (
                   <ul className="emp-week">
-                    {[1, 2, 3, 4, 5, 6, 0].map((i) => (
-                      <li key={i} className={`${i === todayIdx ? "today" : ""} ${DEMO_WEEK[i][1] === "Off" ? "off" : ""}`}>
-                        <span>{DEMO_WEEK[i][0]}</span>
-                        <span>{DEMO_WEEK[i][1]}</span>
-                        {i === todayIdx && <em><i /> Today</em>}
+                    {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day, i) => (
+                      <li key={day} className={`${(todayIdx + 6) % 7 === i ? "today" : ""} ${!workSchedule.workdays.includes(day) ? "off" : ""}`}>
+                        <span>{day}</span>
+                        <span>{workSchedule.workdays.includes(day) ? `${workSchedule.start_time?.slice(0, 5)}–${workSchedule.end_time?.slice(0, 5)}` : "Off"}</span>
+                        {(todayIdx + 6) % 7 === i && <em><i /> Today</em>}
                       </li>
                     ))}
                   </ul>
@@ -965,13 +976,15 @@ function EmployeeDashboard({ user, onLogout }) {
 
   function renderPage() {
     switch (section) {
-      case "people": return <MyPeople />;
+      case "people": return <MyPeople onLeaderboard={() => setSection("leaderboard")} onRemoteWork={() => setSection("remote-work")} onLeave={() => setSection("leave")} />;
+      case "leaderboard": return <Leaderboard user={user} />;
+      case "remote-work": return <RemoteWork user={user} />;
       case "attendance": return renderAttendance();
       case "breaks": return renderBreaks();
       case "leave": return renderLeave();
       case "assets": return renderAssets();
       case "requests": return renderRequests();
-      case "profile": return renderProfile();
+      case "profile": return <><MyRecognitionSummary />{renderProfile()}</>;
       case "notifications": return renderNotifications();
       default: return renderOverview();
     }
