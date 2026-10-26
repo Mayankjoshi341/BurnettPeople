@@ -8,6 +8,8 @@ import {
   getArrayResponse,
   initialsOf,
   normalizeEmployee,
+  statusLabel,
+  statusTone,
 } from "./dashboardUtils";
 import "./MyPeople.css";
 
@@ -24,6 +26,10 @@ function Avatar({ name, index = 0, size = 56 }) {
   );
 }
 
+function StatusChip({ status }) {
+  return <span className={`people-chip tone-${statusTone(status)}`}><i /> {statusLabel(status)}</span>;
+}
+
 function PersonModal({ person, index, onClose }) {
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
@@ -34,24 +40,27 @@ function PersonModal({ person, index, onClose }) {
   const rows = [
     ["Employee code", person.code],
     ["Email", person.email],
+    ["Phone", person.phone],
     ["Department", person.department],
     ["Designation", person.designation],
     ["Reports to", person.manager],
     ["Date joined", person.joined || "—"],
-    ["Employment status", person.status],
+    ["Work location", person.location],
+    ["Employment type", person.employmentType],
   ];
 
   return (
     <div className="admin-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="admin-modal people-modal" role="dialog" aria-modal="true" aria-labelledby="person-title">
+        <div className="people-modal-cover" />
+        <button type="button" className="admin-modal-close people-modal-close" onClick={onClose} aria-label="Close">×</button>
         <div className="people-modal-head">
-          <Avatar name={person.name} index={index} size={72} />
+          <Avatar name={person.name} index={index} size={84} />
           <div>
+            <StatusChip status={person.status} />
             <h2 id="person-title">{person.name}</h2>
-            <p>{person.designation}</p>
-            <span className="admin-status status-ontime">{person.status}</span>
+            <p>{person.designation}{person.department !== "—" ? ` · ${person.department}` : ""}</p>
           </div>
-          <button type="button" className="admin-modal-close" onClick={onClose} aria-label="Close">×</button>
         </div>
         <dl className="people-details">
           {rows.map(([k, v]) => (
@@ -164,13 +173,16 @@ export default function MyPeople({ canAdd = false, onAdd, onLeaderboard, onRemot
     setPage(1);
   };
 
+  /* "By Department" and "By Location" tabs group the same filtered list */
+  const groupKey = tab === "location" ? "location" : "department";
   const groups = useMemo(() => {
     const map = {};
     filtered.forEach((e) => {
-      (map[e.department] = map[e.department] || []).push(e);
+      const key = e[groupKey] && e[groupKey] !== "—" ? e[groupKey] : "Not specified";
+      (map[key] = map[key] || []).push(e);
     });
     return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [filtered]);
+  }, [filtered, groupKey]);
 
   const renderCard = (e, i) => (
     <button
@@ -179,15 +191,18 @@ export default function MyPeople({ canAdd = false, onAdd, onLeaderboard, onRemot
       className={`people-card ${view === "list" ? "list" : ""}`}
       onClick={() => setSelected({ person: e, index: i })}
     >
-      <Avatar name={e.name} index={i} size={view === "list" ? 44 : 56} />
+      <Avatar name={e.name} index={i} size={view === "list" ? 46 : 62} />
       <span className="people-card-copy">
         <strong>{e.name}</strong>
         <small>{e.designation}</small>
         <small>{e.department}</small>
+        {view === "list" && e.location !== "—" && <small className="people-loc"><Icon name="pin" size={11} /> {e.location}</small>}
       </span>
-      <span className="admin-status status-ontime people-chip">{e.status}</span>
+      <StatusChip status={e.status} />
     </button>
   );
+
+  const TABS = [["all", "All People"], ["dept", "By Department"], ["location", "By Location"]];
 
   return (
     <div className="people-page">
@@ -223,21 +238,16 @@ export default function MyPeople({ canAdd = false, onAdd, onLeaderboard, onRemot
       </section>
 
       {directoryError && <div role="alert" className="admin-form-error">{directoryError}</div>}
-      <section className="admin-panel people-leaderboard-preview">
-        <div className="admin-panel-heading"><div><h2>Good Habits Leaderboard</h2><p>Verified positive habits, updated from attendance records.</p></div><button type="button" className="admin-link-button" onClick={onLeaderboard}>View leaderboard <Icon name="arrow" size={14} /></button></div>
-        {loading ? <p className="admin-note">Loading scores…</p> : leaderboardError ? <p className="admin-note" role="status">{leaderboardError}</p> : leaderboardRows.length ? <ol>{leaderboardRows.map((row) => <li key={row.participant_id}><span>#{row.rank} {row.name}</span><strong>{row.points} pts</strong></li>)}</ol> : <p className="admin-note">No eligible scores yet.</p>}
-      </section>
 
       <div className="people-layout">
         <section className="admin-panel people-main" aria-label="People directory">
           <div className="people-toolbar">
             <div className="people-tabs" role="tablist">
-              <button type="button" role="tab" aria-selected={tab === "all"} className={tab === "all" ? "on" : ""} onClick={() => setTab("all")}>
-                All People
-              </button>
-              <button type="button" role="tab" aria-selected={tab === "dept"} className={tab === "dept" ? "on" : ""} onClick={() => setTab("dept")}>
-                By Department
-              </button>
+              {TABS.map(([id, label]) => (
+                <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
+                  {label}
+                </button>
+              ))}
             </div>
 
             <div className="people-toolbar-right">
@@ -274,7 +284,7 @@ export default function MyPeople({ canAdd = false, onAdd, onLeaderboard, onRemot
             </select>
             <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} aria-label="Status">
               <option value="ALL">Status</option>
-              {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+              {statuses.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
             </select>
             <button type="button" className="admin-link-button" onClick={clear}>Clear</button>
             <button type="button" className="admin-link-button" onClick={reload} disabled={loading}>
@@ -300,9 +310,9 @@ export default function MyPeople({ canAdd = false, onAdd, onLeaderboard, onRemot
               )}
             </>
           ) : (
-            groups.map(([dept, list]) => (
-              <div className="people-group" key={dept}>
-                <h3>{dept} <small>{list.length}</small></h3>
+            groups.map(([name, list]) => (
+              <div className="people-group" key={name}>
+                <h3>{name} <small>{list.length}</small></h3>
                 <div className={`people-grid ${view}`}>{list.map(renderCard)}</div>
               </div>
             ))
@@ -310,6 +320,31 @@ export default function MyPeople({ canAdd = false, onAdd, onLeaderboard, onRemot
         </section>
 
         <aside className="people-side">
+          <section className="admin-panel people-leaderboard-preview" aria-labelledby="lb-title">
+            <div className="admin-panel-heading">
+              <div><h2 id="lb-title">Good Habits Leaderboard</h2><p>This week · verified from attendance</p></div>
+              {onLeaderboard && <button type="button" className="admin-link-button" onClick={onLeaderboard}>View all <Icon name="arrow" size={13} /></button>}
+            </div>
+            {loading ? (
+              <p className="admin-note">Loading scores…</p>
+            ) : leaderboardError ? (
+              <p className="admin-note" role="status">{leaderboardError}</p>
+            ) : leaderboardRows.length ? (
+              <ol className="people-streak">
+                {leaderboardRows.map((row, i) => (
+                  <li key={row.participant_id ?? i}>
+                    <b className={`rank r${row.rank ?? i + 1}`}>{row.rank ?? i + 1}</b>
+                    <Avatar name={row.name} index={i} size={36} />
+                    <span><strong>{row.name}</strong></span>
+                    <span className="people-days"><Icon name="flame" size={15} /> {row.points} pts</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="admin-note">No eligible scores yet.</p>
+            )}
+          </section>
+
           <section className="admin-panel" aria-labelledby="dept-ov-title">
             <div className="admin-panel-heading">
               <div><h2 id="dept-ov-title">Department Overview</h2></div>
@@ -328,7 +363,6 @@ export default function MyPeople({ canAdd = false, onAdd, onLeaderboard, onRemot
               <p className="admin-note">Department counts appear once employee records load.</p>
             )}
           </section>
-
         </aside>
       </div>
 

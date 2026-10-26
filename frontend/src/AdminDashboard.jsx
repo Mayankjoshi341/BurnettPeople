@@ -13,6 +13,7 @@ import MyPeople from "./MyPeople";
 import Leaderboard from "./Leaderboard";
 import RemoteWork from "./RemoteWork";
 import "./AdminDashboard.css";
+import "./DashboardScale.css";
 import "./AdminPages.css";
 import burnettLogo from "./assets/burnettpeople-logo.png";
 import loginDarkTeal from "./assets/login-dark-teal.png";
@@ -38,7 +39,7 @@ const NAV = [
   { id: "people", label: "My People", icon: "people" },
   { id: "leaderboard", label: "Leaderboard", icon: "flame" },
   { id: "remote-work", label: "Remote Work", icon: "home" },
-  { id: "hr-roles", label: "HR & Roles", icon: "shield" },
+  // { id: "hr-roles", label: "HR & Roles", icon: "shield" },
   { id: "hr-roles", label: "HR & Manager Management", icon: "shield" },
   { id: "company", label: "Company Settings", icon: "building" },
   { id: "schedule-assignments", label: "Schedule Assignments", icon: "calendar" },
@@ -504,13 +505,6 @@ export default function AdminDashboard({ user, onLogout }) {
       case "people": return <MyPeople onLeaderboard={() => setSection("leaderboard")} onRemoteWork={() => setSection("remote-work")} onLeave={() => setSection("leave")} />;
       case "leaderboard": return <Leaderboard user={user} />;
       case "remote-work": return <RemoteWork user={user} />;
-      case "hr-roles": return <HrRolesPage onAddHr={() => setHrOpen(true)} />;
-      case "company":
-      case "departments": return <AdminCompanySettings key={section} initialTab="departments" />;
-      case "schedules": return <AdminCompanySettings key={section} initialTab="schedules" />;
-      case "schedule-assignments": return <AdminCompanySettings key={section} initialTab="schedule-assignments" hideTabs />;
-      case "assets": return <HRAssets />;
-      case "people": return <MyPeople />;
       case "hr-roles":
         return (
           <AdminHRManagers
@@ -522,8 +516,9 @@ export default function AdminDashboard({ user, onLogout }) {
       case "company":
       case "departments": return <AdminCompanySettings key={section} initialTab="departments" />;
       case "schedules": return <AdminCompanySettings key={section} initialTab="schedules" />;
+      case "schedule-assignments": return <AdminCompanySettings key={section} initialTab="schedule-assignments" hideTabs />;
+      case "assets": return <HRAssets />;
       case "leave": return <AdminLeave />;
-      case "assets": return <AdminAssets />;
       case "reports": return <AdminReports />;
       case "audit": return <AdminAuditLogs />;
       case "status-updates": return <StatusUpdates user={user} />;
