@@ -106,23 +106,63 @@ class RemoteWorkDecisionView(APIView):
 
     @transaction.atomic
     def post(self, request, pk):
-        row = get_object_or_404(RemoteWorkRequest.objects.select_for_update().select_related("employee", "employee__manager"), pk=pk)
-        if is_hr_or_admin(request.user):
-            pass
-        else:
+        row = get_object_or_404(
+    RemoteWorkRequest.objects
+    .select_for_update(of=("self",))
+    .select_related("employee", "employee__manager"),
+    pk=pk,
+)
+
+        # This restriction applies even if the requester is HR/Admin.
+        if row.employee.user_id == request.user.pk:
+            raise PermissionDenied(
+                "You cannot approve or reject your own remote-work request."
+            )
+
+        if not is_hr_or_admin(request.user):
             approver = _linked_employee(request.user)
-            if request.user.role != User.Role.MANAGER or row.employee.manager_id != approver.pk:
-                raise PermissionDenied("Only the employee's manager, HR, or Admin may decide this request.")
+
+            if (
+                request.user.role != User.Role.MANAGER
+                or row.employee.manager_id != approver.pk
+            ):
+                raise PermissionDenied(
+                    "Only the employee's manager, HR, or Admin "
+                    "may decide this request."
+                )
+
         decision = request.data.get("status")
-        if row.status != RemoteWorkRequest.Status.PENDING or decision not in {"APPROVED", "REJECTED"}:
-            raise ValidationError({"status": "Only pending requests may be approved or rejected."})
+
+        if (
+            row.status != RemoteWorkRequest.Status.PENDING
+            or decision not in {
+                RemoteWorkRequest.Status.APPROVED,
+                RemoteWorkRequest.Status.REJECTED,
+            }
+        ):
+            raise ValidationError({
+                "status": "Only pending requests may be approved or rejected."
+            })
+
         row.status = decision
         row.decided_by = request.user
         row.decided_at = timezone.now()
         row.decision_comment = str(request.data.get("comment", ""))[:240]
-        row.save(update_fields=["status", "decided_by", "decided_at", "decision_comment"])
-        return Response({"id": row.pk, "status": row.status, "decided_at": row.decided_at})
 
+        row.save(
+            update_fields=[
+                "status",
+                "decided_by",
+                "decided_at",
+                "decision_comment",
+            ]
+        )
+
+        return Response({
+            "id": row.pk,
+            "status": row.status,
+            "decided_at": row.decided_at,
+        })
 
 def _release_reservations(leave_request, *, consume=False):
     allocation_rows = list(

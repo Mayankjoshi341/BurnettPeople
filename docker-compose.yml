@@ -1,4 +1,22 @@
 
+x-backend-environment: &backend-environment
+  DJANGO_SETTINGS_MODULE: config.settings
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is missing from the root .env file}
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is missing from the root .env file}
+  DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+  REDIS_URL: "redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set in the root .env file}@redis:6379/0"
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+  FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+  EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+  EMAIL_HOST: ${EMAIL_HOST:-localhost}
+  EMAIL_PORT: ${EMAIL_PORT:-25}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS:-False}
+  EMAIL_USE_SSL: ${EMAIL_USE_SSL:-False}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@burnettpeople.local}
+
 services:
   db:
     image: postgres:16-alpine
@@ -8,10 +26,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""
-        ]
+        - CMD-SHELL
+        - 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"'
       interval: 5s
       timeout: 5s
       retries: 10
@@ -24,26 +40,19 @@ services:
     command:
       - sh
       - -c
-      - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+      - 'exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"'
+    ports:
+      - "127.0.0.1:6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
       test:
-        [
-          "CMD-SHELL",
-          "redis-cli -a \"$${REDIS_PASSWORD}\" ping 2>/dev/null | grep -q PONG"
-        ]
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6380:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+        - CMD-SHELL
+        - 'redis-cli -a "$${REDIS_PASSWORD}" ping 2>/dev/null | grep -q PONG'
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   backend:
     build:
@@ -51,39 +60,23 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
-    environment:
-      DJANGO_SETTINGS_MODULE: config.settings
-      REDIS_URL: "redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}@redis:6379/0"
-    environment: &backend-env
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is missing from the root .env file}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is missing from the root .env file}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
-      REDIS_URL: redis://redis:6379/0
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
-      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
-      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
-      EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
-      EMAIL_PORT: ${EMAIL_PORT:-587}
-      EMAIL_HOST_USER: ${EMAIL_HOST_USER:?EMAIL_HOST_USER is missing from root .env}
-      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:?EMAIL_HOST_PASSWORD is missing from root .env}
-      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
-      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-False}
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@burnettpeople.local}
+    environment: *backend-environment
     ports:
       - "8000:8000"
     depends_on:
       redis:
         condition: service_healthy
     command:
-      - python
-      - manage.py
-      - runserver
-      - 0.0.0.0:8000
+      - sh
+      - -c
+      - python manage.py migrate && python manage.py runserver 0.0.0.0:8000
     restart: unless-stopped
-    command: ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import os,urllib.request; host=os.environ.get('DJANGO_ALLOWED_HOSTS','localhost').split(',')[0]; req=urllib.request.Request('http://127.0.0.1:8000/api/health/ready/', headers={'Host':host}); urllib.request.urlopen(req, timeout=3)"]
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,urllib.request; host=os.environ.get('DJANGO_ALLOWED_HOSTS','localhost').split(',')[0]; req=urllib.request.Request('http://127.0.0.1:8000/api/health/ready/', headers={'Host':host}); urllib.request.urlopen(req, timeout=3)"
       interval: 10s
       timeout: 5s
       retries: 5
@@ -95,9 +88,7 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
-    environment:
-      DJANGO_SETTINGS_MODULE: config.settings
-      REDIS_URL: "redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}@redis:6379/0"
+    environment: *backend-environment
     command:
       - celery
       - -A
@@ -105,13 +96,13 @@ services:
       - worker
       - --loglevel=INFO
       - --concurrency=2
-    environment: *backend-env
     depends_on:
       redis:
         condition: service_healthy
       backend:
         condition: service_healthy
-    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "--concurrency=2"]
+    restart: unless-stopped
 
 volumes:
+  postgres_data:
   redis_data:

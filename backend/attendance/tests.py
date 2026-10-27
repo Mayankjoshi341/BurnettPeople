@@ -116,3 +116,57 @@ class AttendanceApiTests(APITestCase):
             {"review_status": "APPROVED"}, format="json",
         )
         self.assertEqual(response.status_code, 403)
+    def test_hr_cannot_review_own_attendance_exception(self):
+        hr = User.objects.create_user(
+            email="hr-self-review@example.test",
+            password="StrongTestPass!2026",
+            first_name="Test",
+            last_name="HR",
+            role=User.Role.HR,
+        )
+    
+        hr_employee = Employee.objects.create(
+            user=hr,
+            employee_code="HRSELF001",
+            official_email=hr.email,
+            first_name="Test",
+            last_name="HR",
+            department=self.department,
+            designation=self.designation,
+            date_of_joining=date.today() - timedelta(days=30),
+            employment_status=Employee.EmploymentStatus.ACTIVE,
+        )
+    
+        self.client.force_authenticate(hr)
+    
+        submitted = self.client.post(
+            "/api/attendance/exceptions/",
+            {
+                "exception_type": "OTHER",
+                "reason": "I need to correct my own attendance record.",
+            },
+            format="json",
+        )
+    
+        self.assertEqual(submitted.status_code, 201, submitted.data)
+    
+        denied = self.client.patch(
+            f"/api/attendance/exceptions/{submitted.data['id']}/review/",
+            {
+                "review_status": "APPROVED",
+                "review_comment": "Self-approved",
+            },
+            format="json",
+        )
+    
+        self.assertEqual(denied.status_code, 403, denied.data)
+    
+        exception = AttendanceException.objects.get(
+            pk=submitted.data["id"]
+        )
+    
+        self.assertEqual(
+            exception.review_status,
+            AttendanceException.ReviewStatus.PENDING,
+        )
+        self.assertIsNone(exception.reviewed_by_id)

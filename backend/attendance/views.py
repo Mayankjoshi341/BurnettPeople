@@ -311,22 +311,59 @@ class AttendanceExceptionReviewView(APIView):
 
     @transaction.atomic
     def patch(self, request, pk):
-        exception = AttendanceException.objects.select_for_update().filter(pk=pk).first()
+        exception = (
+            AttendanceException.objects
+            .select_for_update()
+            .select_related("employee")
+            .filter(pk=pk)
+            .first()
+        )
+
         if exception is None:
             raise NotFound("Attendance exception not found.")
+
+        # HR/Admin may review exceptions, but never their own.
+        if exception.employee.user_id == request.user.pk:
+            raise PermissionDenied(
+                "You cannot review your own attendance exception."
+            )
+
         if exception.review_status != AttendanceException.ReviewStatus.PENDING:
-            raise ValidationError("This exception has already been reviewed.")
+            raise ValidationError(
+                "This exception has already been reviewed."
+            )
+
         serializer = AttendanceExceptionReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         exception.review_status = serializer.validated_data["review_status"]
-        exception.review_comment = serializer.validated_data.get("review_comment", "").strip()
+        exception.review_comment = (
+            serializer.validated_data.get("review_comment", "").strip()
+        )
         exception.reviewed_by = request.user
         exception.reviewed_at = timezone.now()
-        exception.save(update_fields=["review_status", "review_comment", "reviewed_by", "reviewed_at"])
+
+        exception.save(
+            update_fields=[
+                "review_status",
+                "review_comment",
+                "reviewed_by",
+                "reviewed_at",
+            ]
+        )
+
         record_audit_event(
-            action=AuditEvent.Action.ATTENDANCE_EXCEPTION_REVIEWED, actor=request.user,
-            subject_user=exception.employee.user, subject_email=exception.employee.user.email,
-            object_type="attendance_exception", object_id=exception.pk,
+            action=AuditEvent.Action.ATTENDANCE_EXCEPTION_REVIEWED,
+            actor=request.user,
+            subject_user=exception.employee.user,
+            subject_email=(
+                exception.employee.user.email
+                if exception.employee.user_id
+                else ""
+            ),
+            object_type="attendance_exception",
+            object_id=exception.pk,
             metadata={"review_status": exception.review_status},
         )
+
         return Response(AttendanceExceptionSerializer(exception).data)
