@@ -167,17 +167,27 @@ class AchievementCatalogView(APIView):
 
 
 def _review_allowed(reviewer, participant):
-    if reviewer.role in {User.Role.ADMIN, User.Role.HR}:
+    # A participant must never verify their own submission.
+    # Check this before granting elevated-role permissions.
+    if reviewer.pk == participant.pk:
+        return False
+
+    if reviewer.is_superuser or reviewer.role in {
+        User.Role.ADMIN,
+        User.Role.HR,
+    }:
         return True
+
     if reviewer.role != User.Role.MANAGER:
         return False
+
     try:
         reviewer_employee = reviewer.employee_profile
         participant_employee = participant.employee_profile
     except Employee.DoesNotExist:
         return False
-    return participant_employee.manager_id == reviewer_employee.id
 
+    return participant_employee.manager_id == reviewer_employee.id
 
 def _learning_data(activity, participant):
     completion = LearningCompletion.objects.filter(activity=activity, participant=participant).first()

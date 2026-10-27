@@ -8,7 +8,15 @@ from accounts.models import User
 from attendance.models import AttendanceRecord, BreakPolicy
 from employees.models import Employee, EmployeeScheduleAssignment, WorkSchedule
 from organization.models import Department, Designation
-from recognition.models import AchievementDefinition, EmployeeAchievement, ScoreLedger, ScoringRule
+from recognition.models import (
+    AchievementDefinition,
+    ChallengeParticipation,
+    EmployeeAchievement,
+    LearningCompletion,
+    ScoreLedger,
+    ScoringRule,
+)
+
 from recognition.services import award_event, current_streak, award_streak_achievement, evaluate_periodic_achievements
 
 
@@ -240,3 +248,150 @@ class RecognitionApiTests(APITestCase):
                 check_out=datetime.combine(workday, datetime.min.time().replace(hour=18), tzinfo=zone),
                 status=AttendanceRecord.Status.CLOSED)
         self.assertEqual(current_streak(self.employee_user), 1)
+
+    
+    def test_hr_and_admin_cannot_verify_their_own_submissions(self):
+        admin = User.objects.create_user(
+            email="recognition-admin-self@example.test",
+            password="StrongPass!2026",
+            first_name="Admin",
+            last_name="Reviewer",
+            role=User.Role.ADMIN,
+        )
+    
+        today = timezone.localdate()
+    
+        # Verify that both elevated roles are prevented from
+        # self-verifying learning submissions and team challenges.
+        for reviewer in (self.hr, admin):
+            with self.subTest(role=reviewer.role):
+                self.client.force_authenticate(reviewer)
+    
+                activity = self.client.post(
+                    "/api/recognition/learning/",
+                    {
+                        "title": f"Security course for {reviewer.role}",
+                        "description": "A self-review regression test.",
+                    },
+                    format="json",
+                )
+    
+                self.assertEqual(activity.status_code, 201, activity.data)
+    
+                enrollment = self.client.post(
+                    f"/api/recognition/learning/{activity.data['id']}/enroll/"
+                )
+    
+                self.assertEqual(
+                    enrollment.status_code, 200, enrollment.data
+                )
+    
+                completion_id = enrollment.data["id"]
+    
+                submitted = self.client.post(
+                    f"/api/recognition/learning/completions/"
+                    f"{completion_id}/submit/",
+                    {
+                        "submission_note": "Completed the test course."
+                    },
+                    format="json",
+                )
+    
+                self.assertEqual(
+                    submitted.status_code, 200, submitted.data
+                )
+    
+                denied = self.client.post(
+                    f"/api/recognition/learning/completions/"
+                    f"{completion_id}/verify/",
+                    {"decision": "COMPLETED"},
+                    format="json",
+                )
+    
+                self.assertEqual(denied.status_code, 403, denied.data)
+    
+                completion = LearningCompletion.objects.get(
+                    pk=completion_id
+                )
+    
+                self.assertEqual(
+                    completion.status,
+                    LearningCompletion.Status.REVIEW,
+                )
+    
+                self.assertFalse(
+                    ScoreLedger.objects.filter(
+                        participant=reviewer,
+                        activity=ScoringRule.Activity.LEARNING_COMPLETED,
+                    ).exists()
+                )
+    
+                challenge = self.client.post(
+                    "/api/recognition/challenges/",
+                    {
+                        "title": f"Team challenge for {reviewer.role}",
+                        "description": "A self-review regression test.",
+                        "starts_on": today.isoformat(),
+                        "ends_on": today.isoformat(),
+                    },
+                    format="json",
+                )
+    
+                self.assertEqual(
+                    challenge.status_code, 201, challenge.data
+                )
+    
+                joined = self.client.post(
+                    f"/api/recognition/challenges/"
+                    f"{challenge.data['id']}/join/"
+                )
+    
+                self.assertEqual(joined.status_code, 200, joined.data)
+    
+                participation_id = joined.data["id"]
+    
+                challenge_submitted = self.client.post(
+                    f"/api/recognition/challenges/participations/"
+                    f"{participation_id}/submit/",
+                    {
+                        "submission_note": (
+                            "Completed the team challenge test."
+                        )
+                    },
+                    format="json",
+                )
+    
+                self.assertEqual(
+                    challenge_submitted.status_code,
+                    200,
+                    challenge_submitted.data,
+                )
+    
+                challenge_denied = self.client.post(
+                    f"/api/recognition/challenges/participations/"
+                    f"{participation_id}/verify/",
+                    {"decision": "COMPLETED"},
+                    format="json",
+                )
+    
+                self.assertEqual(
+                    challenge_denied.status_code,
+                    403,
+                    challenge_denied.data,
+                )
+    
+                participation = ChallengeParticipation.objects.get(
+                    pk=participation_id
+                )
+    
+                self.assertEqual(
+                    participation.status,
+                    ChallengeParticipation.Status.REVIEW,
+                )
+    
+                self.assertFalse(
+                    ScoreLedger.objects.filter(
+                        participant=reviewer,
+                        activity=ScoringRule.Activity.TEAM_CHALLENGE,
+                    ).exists()
+                )

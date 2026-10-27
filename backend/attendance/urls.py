@@ -1,5 +1,6 @@
 from django.urls import path
 
+from attendance.overview_views import AttendanceOverviewView
 from attendance.reporting_views import (
     AttendanceRecordListView,
     AttendanceSummaryView,
@@ -37,6 +38,7 @@ urlpatterns = [
     path("history/", MyAttendanceHistoryView.as_view(), name="history"),
     path("records/", AttendanceRecordListView.as_view(), name="attendance-record-list"),
     path("summary/", AttendanceSummaryView.as_view(), name="attendance-summary"),
+    path("overview/", AttendanceOverviewView.as_view(), name="attendance-overview"),
     path("reports/daily/", DailyAttendanceReportView.as_view(), name="daily-attendance-report"),
     path("manager-dashboard/", ManagerDashboardView.as_view(), name="manager-dashboard"),
     path("schedules/", WorkScheduleListView.as_view(), name="schedule-list"),

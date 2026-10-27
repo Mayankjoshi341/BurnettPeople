@@ -2,7 +2,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -11,12 +11,11 @@ from rest_framework_simplejwt.token_blacklist.models import (
     OutstandingToken,
 )
 
-from accounts.models import AccountInvitation, AuditEvent
+from accounts.models import AccountInvitation, AuditEvent, User
 from accounts.permissions import IsHROrAdmin
 from accounts.services.audit import record_audit_event
 from accounts.services.invitations import create_or_resend_invitation
 from employees.models import Employee
-from django.utils import timezone
 from hr_operations.models import LeaveRequest, RemoteWorkRequest
 
 
@@ -67,6 +66,7 @@ class EmployeeDirectoryOverviewView(APIView):
             "work_from_home_available": True,
         })
 from employees.serializers import (
+    EmployeeRoleChangeSerializer,
     EmployeeSerializer,
     EmploymentStatusTransitionSerializer,
 )
@@ -115,6 +115,66 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             data = self.get_serializer(page, many=True).data
             return self.get_paginated_response(data)
         return Response(self.get_serializer(employees, many=True).data)
+
+    @action(detail=True, methods=["post"], url_path="change-role")
+    @transaction.atomic
+    def change_role(self, request, pk=None):
+        """Allow Admin to promote an active employee account to Manager."""
+        if request.user.role != User.Role.ADMIN and not request.user.is_superuser:
+            raise PermissionDenied("Only Admin can change employee roles.")
+
+        selected = self.get_object()
+        employee = Employee.objects.select_for_update().get(pk=selected.pk)
+
+        if employee.user_id is None:
+            raise ValidationError("This employee has no linked portal account.")
+        if employee.user_id == request.user.pk:
+            raise PermissionDenied("You cannot change your own role through this endpoint.")
+
+        target_user = User.objects.select_for_update().get(pk=employee.user_id)
+        serializer = EmployeeRoleChangeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        target_role = serializer.validated_data["role"]
+
+        if employee.employment_status != Employee.EmploymentStatus.ACTIVE:
+            raise ValidationError("Only active employees can be promoted to Manager.")
+        if not target_user.is_active:
+            raise ValidationError("The portal account must be activated before promotion.")
+
+        # Retries are harmless: do not generate duplicate audit rows.
+        if target_user.role == target_role:
+            employee.refresh_from_db()
+            return Response({
+                "detail": "This employee is already a Manager.",
+                "employee": self.get_serializer(employee).data,
+            })
+
+        if target_user.role != User.Role.EMPLOYEE:
+            raise ValidationError("Only users with the Employee role can be promoted to Manager.")
+
+        previous_role = target_user.role
+        target_user.role = target_role
+        target_user.save(update_fields=["role"])
+
+        record_audit_event(
+            action=AuditEvent.Action.EMPLOYEE_ROLE_CHANGED,
+            actor=request.user,
+            subject_user=target_user,
+            subject_email=target_user.email,
+            object_type="Employee",
+            object_id=employee.pk,
+            metadata={
+                "employee_code": employee.employee_code,
+                "previous_role": previous_role,
+                "new_role": target_role,
+            },
+        )
+
+        employee.refresh_from_db()
+        return Response({
+            "detail": "Employee promoted to Manager.",
+            "employee": self.get_serializer(employee).data,
+        })
 
     @action(detail=True, methods=["post"], url_path="resend-invitation")
     def resend_invitation(self, request, pk=None):

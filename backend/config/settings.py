@@ -37,23 +37,70 @@ TEMPLATES = [{
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Shared PostgreSQL database (Neon)
+
 DATABASES = {
     "default": env.db("DATABASE_URL"),
 }
 
 DATABASES["default"]["CONN_MAX_AGE"] = env.int(
-    "DB_CONN_MAX_AGE", default=60
+    "DB_CONN_MAX_AGE",
+    default=60,
 )
+
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
-DATABASES["default"].setdefault("OPTIONS", {})
+
 if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
-    DATABASES["default"]["OPTIONS"].setdefault("sslmode", "require")
+    db_options = DATABASES["default"].setdefault("OPTIONS", {})
+
+    db_host = (
+        DATABASES["default"].get("HOST") or ""
+    ).strip().lower()
+
+    configured_sslmode = env(
+        "DB_SSLMODE",
+        default="",
+    ).strip().lower()
+
+    if configured_sslmode:
+        # Use an explicitly configured SSL mode.
+        db_options["sslmode"] = configured_sslmode
+
+    elif db_host in {"db", "localhost", "127.0.0.1"}:
+        # Local Docker PostgreSQL does not require SSL.
+        db_options["sslmode"] = "disable"
+
+    else:
+        # Remote PostgreSQL uses SSL by default.
+        db_options.setdefault("sslmode", "require")
+
+
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        )
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "MinimumLengthValidator"
+        )
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "CommonPasswordValidator"
+        )
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "NumericPasswordValidator"
+        )
+    },
 ]
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
 USE_I18N = True

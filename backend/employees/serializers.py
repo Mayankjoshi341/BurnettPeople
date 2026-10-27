@@ -218,3 +218,16 @@ class EmploymentStatusTransitionSerializer(serializers.Serializer):
                 })
 
         return attrs
+
+
+class EmployeeRoleChangeSerializer(serializers.Serializer):
+    """Restrict this action to the approved Employee -> Manager transition."""
+
+    role = serializers.ChoiceField(choices=User.Role.choices, required=True)
+
+    def validate_role(self, value):
+        if value != User.Role.MANAGER:
+            raise serializers.ValidationError(
+                "This endpoint only supports promoting an employee to Manager."
+            )
+        return value

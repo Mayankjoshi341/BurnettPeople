@@ -48,3 +48,54 @@ class RemoteWorkRequestTests(APITestCase):
         self.assertEqual(len(response.data), 2)
         self.assertNotIn("official_email", response.data[0])
         self.assertNotIn("phone_number", response.data[0])
+    def test_hr_cannot_approve_own_remote_work_request(self):
+        hr = User.objects.create_user(
+            email="remote-hr-self@example.test",
+            password="StrongPass!2026",
+            role=User.Role.HR,
+        )
+    
+        Employee.objects.create(
+            user=hr,
+            employee_code="RWH001",
+            official_email=hr.email,
+            first_name="Remote",
+            last_name="HR",
+            department=self.employee.department,
+            designation=self.employee.designation,
+            employment_status=Employee.EmploymentStatus.ACTIVE,
+            date_of_joining=timezone.localdate() - timedelta(days=60),
+        )
+    
+        self.client.force_authenticate(hr)
+    
+        created = self.client.post(
+            "/api/remote-work/requests/",
+            {
+                "work_date": (
+                    timezone.localdate() + timedelta(days=1)
+                ).isoformat(),
+                "reason": "Testing the self-approval restriction.",
+            },
+            format="json",
+        )
+    
+        self.assertEqual(created.status_code, 201, created.data)
+    
+        denied = self.client.post(
+            f"/api/remote-work/requests/{created.data['id']}/decision/",
+            {"status": "APPROVED"},
+            format="json",
+        )
+    
+        self.assertEqual(denied.status_code, 403, denied.data)
+    
+        remote_request = RemoteWorkRequest.objects.get(
+            pk=created.data["id"]
+        )
+    
+        self.assertEqual(
+            remote_request.status,
+            RemoteWorkRequest.Status.PENDING,
+        )
+        self.assertIsNone(remote_request.decided_by_id)

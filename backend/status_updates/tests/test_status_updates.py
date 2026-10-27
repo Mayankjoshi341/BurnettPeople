@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from .models import StatusUpdate
+from ..models import StatusUpdate
 
 User = get_user_model()
 
