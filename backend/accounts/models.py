@@ -160,6 +160,7 @@ class AuditEvent(models.Model):
         ACCOUNT_ACTIVATED = "ACCOUNT_ACTIVATED", "Account activated"
         EMPLOYEE_DEACTIVATED = "EMPLOYEE_DEACTIVATED", "Employee deactivated"
         EMPLOYMENT_STATUS_CHANGED = "EMPLOYMENT_STATUS_CHANGED", "Employment status changed"
+        EMPLOYEE_ROLE_CHANGED = "EMPLOYEE_ROLE_CHANGED", "Employee role changed"
         HR_CREATED = "HR_CREATED", "HR account created"
         PASSWORD_RESET_REQUESTED = (
             "PASSWORD_RESET_REQUESTED",
