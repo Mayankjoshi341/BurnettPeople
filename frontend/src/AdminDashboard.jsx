@@ -1,23 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import StatusUpdates from "./StatusUpdates";
+import { STATUS_UPDATES_META, STATUS_UPDATES_NAV } from "./statusUpdatesMeta";
 import apiClient from "./api/client";
+import { userDisplayName } from "./auth/userDisplay";
+import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
 import HRAssets from "./HRAssets";
 import AdminAuditLogs from "./AdminAuditLogs";
 import AdminCompanySettings from "./AdminCompanySettings";
 import AdminEmployees from "./AdminEmployees";
 import AdminReports from "./AdminReports";
-import AdminHRManagers from "./AdminHRManagers"; // NEW: HR & Manager Overview
-import AdminLeave from "./AdminLeave"; // NEW: Leave Management
+import AdminProfile from "./AdminProfile";
+import AdminHRManagers from "./AdminHRManagers"; // HR & Manager Overview
+import AdminLeave from "./AdminLeave"; // Leave Management
 import MyPeople from "./MyPeople";
 import Leaderboard from "./Leaderboard";
 import RemoteWork from "./RemoteWork";
-import "./AdminDashboard.css";
-import "./DashboardScale.css";
 import "./AdminPages.css";
-import burnettLogo from "./assets/burnettpeople-logo.png";
-import loginDarkTeal from "./assets/login-dark-teal.png";
-import loginSoftMint from "./assets/login-soft-mint.png";
 
 /* ------------------------------------------------------------------
    SETTINGS YOU MAY NEED TO CHANGE
@@ -39,19 +38,18 @@ const NAV = [
   { id: "people", label: "My People", icon: "people" },
   { id: "leaderboard", label: "Leaderboard", icon: "flame" },
   { id: "remote-work", label: "Remote Work", icon: "home" },
-  // { id: "hr-roles", label: "HR & Roles", icon: "shield" },
   { id: "hr-roles", label: "HR & Manager Management", icon: "shield" },
   { id: "company", label: "Company Settings", icon: "building" },
-  { id: "schedule-assignments", label: "Schedule Assignments", icon: "calendar" },
+  // { id: "schedule-assignments", label: "Schedule Assignments", icon: "calendar" },
   { id: "attendance", label: "Attendance & Breaks", icon: "clock" },
   { id: "exceptions", label: "Exception Reviews", icon: "alert" },
   { id: "leave", label: "Leave Management", icon: "plane" },
   { id: "assets", label: "Assets & Devices", icon: "laptop" },
   { id: "reports", label: "Reports", icon: "file" },
   { id: "audit", label: "Audit Logs", icon: "lock" },
-  { id: "notifications", label: "Notifications", icon: "bell", badge: true },
-  { id: "status-updates", label: "Work Status Updates", icon: "file" },
-  // { id: "settings", label: "Settings", icon: "gear" },
+  { id: "notifications", label: "Notifications", icon: "bell" },
+  { id: "profile", label: "My Profile", icon: "user" },
+  STATUS_UPDATES_NAV, // { id: "status-updates", label: "Status Updates", icon: "file" }
 ];
 
 const PAGE_META = {
@@ -60,24 +58,21 @@ const PAGE_META = {
   people: ["My People", "Explore your organization, connect with colleagues and celebrate achievements."],
   leaderboard: ["Good Habits & Leaderboard", "Recognize positive, verified work habits across the company."],
   "remote-work": ["Remote Work", "Review approved work location requests."],
-  "hr-roles": ["HR & Roles", "Onboard HR users and review access roles."],
   "hr-roles": ["HR & Manager Overview", "Manage HR employees, assign managers, and view reporting structure."],
   company: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
   departments: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
-  schedules: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
-  "schedule-assignments": ["Schedule Assignments", "Assign effective-dated work schedules and review assignment history."],
+  // schedules: ["Company Settings", "Manage your organization structure, roles, locations, schedules and basic information."],
+  // { id: "schedule-assignments", label: "Schedule Assignments", icon: "calendar" },
   attendance: ["Attendance & Breaks", "Track check-ins, breaks and hours."],
   exceptions: ["Exception Reviews", "Resolve attendance exceptions."],
   leave: ["Leave Management", "Review and manage HR leave requests and manager leave requests."],
   assets: ["Assets & Devices", "Manage company devices and equipment, and track their status."],
   reports: ["Reports", "View attendance, leave and workplace activity reports by date."],
   audit: ["Audit Logs", "Track all activities and changes happening in the system. Monitor user actions, data changes, and security events."],
-  notifications: ["Notifications", "Everything that needs your attention."],
+  notifications: ["Notifications", "Stay updated with important updates, approvals, reminders and announcements."],
+  profile: ["My Profile", "View your personal information, work details, account security and preferences."],
   settings: ["Settings", "Company preferences and configuration."],
-  "status-updates": [
-  "Work Status Updates",
-  "Record completed work, current focus, testing, tech stack and blockers.",
-],
+  "status-updates": STATUS_UPDATES_META.ADMIN,
 };
 
 /* ------------------------------------------------------------------
@@ -101,12 +96,6 @@ const DEMO = {
 };
 
 const AVATAR_TONES = ["#dbeafe", "#fde8dc", "#dcf5ea", "#e9e3fb", "#fff0cf"];
-
-function initialsOf(name = "") {
-  return (
-    name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join("") || "AD"
-  );
-}
 
 /* ------------------------------------------------------------------
    Small components
@@ -373,12 +362,12 @@ function OverviewPage({ user, data, go, workflowRange, onWorkflowRangeChange }) 
               };
               const [icon, tone, title, sub, target] = labels[item.key] || [];
               return (
-              <button key={item.key} type="button" className="admin-attention-item" onClick={() => go(target)}>
-                <span className={`admin-attention-icon ${tone}`}><Icon name={icon} size={20} /></span>
-                <span className="admin-attention-copy"><strong>{title}</strong><small>{sub}</small></span>
-                <span className={`admin-count-pill ${tone}`}>{item.count}</span>
-              </button>
-            );
+                <button key={item.key} type="button" className="admin-attention-item" onClick={() => go(target)}>
+                  <span className={`admin-attention-icon ${tone}`}><Icon name={icon} size={20} /></span>
+                  <span className="admin-attention-copy"><strong>{title}</strong><small>{sub}</small></span>
+                  <span className={`admin-count-pill ${tone}`}>{item.count}</span>
+                </button>
+              );
             }) : <p className="admin-note">No outstanding administrative items.</p>}
           </div>
         </section>
@@ -473,15 +462,10 @@ function ComingSoon({ title }) {
 export default function AdminDashboard({ user, onLogout }) {
   const [section, setSection] = useState("overview");
   const [hrOpen, setHrOpen] = useState(false);
-  const [bellOpen, setBellOpen] = useState(false);
   const [data, setData] = useState(SHOW_DEMO_DATA ? DEMO : null);
   const [workflowRange, setWorkflowRange] = useState("5");
 
-  const displayName = user?.full_name || user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "Admin";
-  const roleLabel = user?.role ? user.role.charAt(0) + user.role.slice(1).toLowerCase() : "Admin";
-  const unread = data?.attention
-    ? data.attention.invitations + data.attention.exceptions + data.attention.schedules + data.attention.assets
-    : 0;
+  const displayName = userDisplayName(user) || "Admin";
 
   // Try the real metrics endpoint; keep demo/empty state if it fails.
   useEffect(() => {
@@ -516,113 +500,33 @@ export default function AdminDashboard({ user, onLogout }) {
       case "company":
       case "departments": return <AdminCompanySettings key={section} initialTab="departments" />;
       case "schedules": return <AdminCompanySettings key={section} initialTab="schedules" />;
-      case "schedule-assignments": return <AdminCompanySettings key={section} initialTab="schedule-assignments" hideTabs />;
+      // case "schedule-assignments": return <AdminCompanySettings key={section} initialTab="schedule-assignments" hideTabs />;
       case "assets": return <HRAssets />;
       case "leave": return <AdminLeave />;
       case "reports": return <AdminReports />;
       case "audit": return <AdminAuditLogs />;
+      case "profile": return <AdminProfile user={user} />;
       case "status-updates": return <StatusUpdates user={user} />;
       default: return <ComingSoon title={title} />;
     }
   }
 
   return (
-    <div className="admin-dashboard">
-      <aside className="admin-sidebar" style={{ backgroundImage: `url(${loginDarkTeal})` }}>
-        <a className="admin-brand" href="/admin" onClick={(e) => { e.preventDefault(); setSection("overview"); }}>
-          <img src={burnettLogo} alt="BurnettPeople" />
-          <span>YOUR PEOPLE. YOUR FUTURE.</span>
-        </a>
-
-        <nav className="admin-nav" aria-label="Admin sections">
-          {NAV.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`admin-nav-link${activeNav === item.id ? " active" : ""}`}
-              aria-current={activeNav === item.id ? "page" : undefined}
-              onClick={() => setSection(item.id)}
-            >
-              <span className="admin-nav-icon"><Icon name={item.icon} size={22} /></span>
-              {item.label}
-              {item.badge && unread > 0 && <span className="admin-nav-badge">{Math.min(unread, 99)}</span>}
-            </button>
-          ))}
-        </nav>
-
-        <div className="admin-sidebar-bottom">
-          <div className="admin-sidebar-tagline">
-            <span>Building better workplaces together.</span>
-            <span className="admin-tagline-arrow"><Icon name="arrow" size={16} /></span>
-          </div>
-          <div className="admin-sidebar-profile">
-            <span className="admin-profile-avatar">{initialsOf(displayName)}</span>
-            <span className="admin-profile-details">
-              <strong>{displayName}</strong>
-              <small>{roleLabel}</small>
-            </span>
-            <span className="admin-online-dot" title="Online" />
-          </div>
-          <button type="button" className="admin-sidebar-logout" onClick={onLogout}>
-            <Icon name="logout" size={18} /> Log out
-          </button>
-        </div>
-      </aside>
-
-      <div className="admin-main">
-        <header className="admin-header">
-          <div className="admin-header-heading">
-            <h1>{title}</h1>
-            <p>{subtitle}</p>
-          </div>
-
-          <div className="admin-header-actions">
-            <label className="admin-search">
-              <Icon name="search" size={18} />
-              <input type="search" placeholder="Search employees, schedules, leaves..." aria-label="Search" />
-              <kbd>Ctrl + K</kbd>
-            </label>
-
-            <div className="admin-notification-wrap">
-              <button
-                type="button"
-                className="admin-notification-button"
-                onClick={() => setBellOpen((o) => !o)}
-                aria-label="Notifications"
-                aria-expanded={bellOpen}
-              >
-                <Icon name="bell" size={20} />
-                {unread > 0 && <span className="admin-notification-count">{Math.min(unread, 99)}</span>}
-              </button>
-              {bellOpen && (
-                <div className="admin-notification-popover" role="status">
-                  {unread > 0
-                    ? `You have ${unread} items waiting for your action.`
-                    : "You're all caught up."}
-                </div>
-              )}
-            </div>
-
-            <div className="admin-header-profile">
-              <span className="admin-topbar-avatar">{initialsOf(displayName)}</span>
-              <span className="admin-topbar-user-details">
-                <strong>{displayName}</strong>
-                <small>{roleLabel}</small>
-              </span>
-            </div>
-          </div>
-        </header>
-
-        <main className="admin-workspace" style={{ backgroundImage: `url(${loginSoftMint})` }}>
-          {renderPage()}
-          <footer className="admin-footer">
-            <span>© 2026 BurnettPeople</span>
-            <span>Admin workspace</span>
-          </footer>
-        </main>
-      </div>
-
+    <DashboardShell
+      rootClass="admin-root"
+      user={user}
+      onLogout={onLogout}
+      nav={NAV}
+      section={activeNav}
+      setSection={setSection}
+      title={title}
+      subtitle={subtitle}
+      searchPlaceholder="Search employees, schedules, leaves..."
+      homePath="/admin"
+      footerLabel="Admin workspace"
+    >
+      {renderPage()}
       {hrOpen && <HRFormModal onClose={() => setHrOpen(false)} />}
-    </div>
+    </DashboardShell>
   );
 }

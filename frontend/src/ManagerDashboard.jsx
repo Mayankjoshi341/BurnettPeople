@@ -18,6 +18,8 @@ import RemoteWork from "./RemoteWork";
 import { decideLeaveRequest, useLeaveData } from "./features/leave/leaveApi";
 import "./AdminPages.css";
 import "./ManagerDashboard.css";
+import StatusUpdates from "./StatusUpdates";
+import { STATUS_UPDATES_META, STATUS_UPDATES_NAV } from "./statusUpdatesMeta";
 
 const NAV = [
   { id: "overview", label: "Dashboard", icon: "home" },
@@ -33,7 +35,7 @@ const NAV = [
   { id: "reports", label: "Reports", icon: "file" },
   { id: "profile", label: "My Profile", icon: "user" },
   { id: "notifications", label: "Notifications", icon: "bell" },
-  { id: "status-updates", label: "Work Status Updates", icon: "file" },
+  STATUS_UPDATES_NAV,
 ];
 
 const PAGE_META = {
@@ -50,10 +52,7 @@ const PAGE_META = {
   reports: ["Team Reports", "View your team's attendance, leave and assets."],
   profile: ["My Profile", "View and manage your personal, work and managerial information."],
   notifications: ["Notifications", "Updates about your team."],
-  "status-updates": [
-  "Work Status Updates",
-  "Record completed work, current focus, testing, tech stack and blockers.",
-],
+  "status-updates": STATUS_UPDATES_META.MANAGER,
 };
 
 function Overview({ data, go, onDecide, name }) {

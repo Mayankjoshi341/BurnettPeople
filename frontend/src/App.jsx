@@ -15,7 +15,7 @@ const EmployeeDashboard = lazy(() => import("./EmployeeDashboard"));
 const ManagerDashboard = lazy(() => import("./ManagerDashboard"));
 const EmployeeList = lazy(() => import("./EmployeeList"));
 const EmployeeForm = lazy(() => import("./EmployeeForm"));
-const EmployeeProfile = lazy(() => import("./EmployeeProfile"));
+const EmployeeProfile = lazy(() => import("./EmployeeMyProfile"));
 const EmployeeActivation = lazy(() => import("./EmployeeActivation"));
 import apiClient from "./api/client";
 const PasswordResetPage = lazy(() => import("./pages/PasswordResetPage"));

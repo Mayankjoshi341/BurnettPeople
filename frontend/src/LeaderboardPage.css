@@ -1,0 +1,240 @@
+/* Employee Leaderboard page.
+   ADD this file next to Leaderboard.jsx. Keep your existing Leaderboard.css (GoodHabitsActivities still uses it).
+   Uses the --ad-* variables from the dashboard CSS, so light and dark theme work automatically. */
+
+.admin-dashboard .lbx { display: flex; flex-direction: column; gap: 16px; }
+
+/* ---------- header: show the page heading inside the page (like the reference) ---------- */
+/* The dashboard header normally shows the section title on the left. While the leaderboard is open
+   we hide that title (the page has its own heading with the trophy) and move the search to the left. */
+.admin-dashboard:has(.lbx) .admin-header-heading { display: none; }
+.admin-dashboard:has(.lbx) .admin-header-actions { width: 100%; }
+.admin-dashboard:has(.lbx) .admin-header-actions .admin-search { width: clamp(220px, 34vw, 440px); }
+.admin-dashboard:has(.lbx) .admin-header-actions .admin-notification-wrap { margin-left: auto; }
+
+.admin-dashboard .lbx-hero { display: flex; align-items: center; gap: 14px; }
+.admin-dashboard .lbx-hero-ic {
+  display: flex;
+  flex: 0 0 52px;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  color: #0b6b53;
+  background: #d9f5e8;
+  border-radius: 14px;
+}
+.admin-dashboard .lbx-hero h2 { margin: 0 0 2px; color: var(--ad-text); font-size: clamp(24px, 2.2vw, 32px); font-weight: 800; letter-spacing: -0.8px; line-height: 1.2; }
+.admin-dashboard .lbx-hero p { margin: 0; color: var(--ad-muted); font-size: 14px; }
+:root[data-theme="dark"] .admin-dashboard .lbx-hero-ic { color: #5fe0b8; background: #123a33; }
+
+/* ---------- top cards (always ONE row on desktop) ---------- */
+.admin-dashboard .lbx-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.admin-dashboard .lbx-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  background: var(--ad-panel);
+  border: 1px solid var(--ad-border);
+  border-radius: 14px;
+  box-shadow: var(--ad-shadow);
+}
+.admin-dashboard .lbx-card-body { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.admin-dashboard .lbx-card-body > small { color: var(--ad-text); font-size: 13px; font-weight: 600; }
+.admin-dashboard .lbx-big { color: var(--ad-text); font-size: 28px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.15; }
+.admin-dashboard .lbx-up { color: #0b8a6c; font-size: 12px; font-style: normal; font-weight: 600; }
+.admin-dashboard .lbx-delta { display: inline-flex; align-items: center; gap: 4px; color: var(--ad-muted); font-size: 12px; font-weight: 600; }
+.admin-dashboard .lbx-delta.up { color: #0b8a6c; }
+.admin-dashboard .lbx-delta.down { color: #d9434b; }
+.admin-dashboard .lbx-delta .flip { display: inline-flex; transform: rotate(90deg); }
+
+.admin-dashboard .lbx-medal {
+  display: grid;
+  flex: 0 0 52px;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  color: #fff;
+  background: linear-gradient(145deg, #f7b733, #e0891b);
+  border: 3px solid #ffe3a6;
+  border-radius: 14px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.admin-dashboard .lbx-ic {
+  display: flex;
+  flex: 0 0 48px;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+}
+.admin-dashboard .lbx-ic.sm { flex-basis: 38px; width: 38px; height: 38px; border-radius: 10px; }
+.admin-dashboard .lbx-ic.green { color: #07886c; background: #dcf8ed; }
+.admin-dashboard .lbx-ic.amber { color: #d9822b; background: #fff0dc; }
+.admin-dashboard .lbx-ic.red { color: #d9434b; background: #ffe9ea; }
+.admin-dashboard .lbx-ic.blue { color: #3b82c4; background: #e3f0fb; }
+.admin-dashboard .lbx-ic.purple { color: #7a63c9; background: #ede8fb; }
+
+.admin-dashboard .lbx-progress { margin-top: 8px; }
+.admin-dashboard .lbx-bar { height: 6px; overflow: hidden; background: var(--ad-border); border-radius: 6px; }
+.admin-dashboard .lbx-bar span { display: block; height: 100%; background: linear-gradient(90deg, #087d68, #14a37f); border-radius: 6px; }
+.admin-dashboard .lbx-progress-text { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; margin-top: 4px; color: var(--ad-muted); font-size: 11px; }
+
+.admin-dashboard .lbx-streak-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.admin-dashboard .lbx-streak-row > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  background: var(--ad-soft);
+  border: 1px solid var(--ad-border);
+  border-radius: 10px;
+  text-align: center;
+}
+.admin-dashboard .lbx-streak-row b { color: var(--ad-text); font-size: 19px; line-height: 1.1; }
+.admin-dashboard .lbx-streak-row small { color: var(--ad-muted); font-size: 10px; line-height: 1.3; }
+
+.admin-dashboard .lbx-motivate {
+  align-items: center;
+  background: linear-gradient(120deg, #e3f8ee, #cdf0e0);
+  border-color: rgba(111, 203, 170, 0.45);
+}
+.admin-dashboard .lbx-motivate p { margin: 0; color: #24495a; font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+.admin-dashboard .lbx-motivate strong { display: block; margin-top: 4px; color: #087d68; font-size: 16px; }
+.admin-dashboard .lbx-plant { flex: 0 0 56px; width: 56px; height: 56px; }
+:root[data-theme="dark"] .admin-dashboard .lbx-motivate { background: linear-gradient(120deg, #123a33, #0f2e2a); border-color: #1e5c54; }
+:root[data-theme="dark"] .admin-dashboard .lbx-motivate p { color: #cfe7e0; }
+:root[data-theme="dark"] .admin-dashboard .lbx-motivate strong { color: #5fe0b8; }
+
+/* ---------- layout ---------- */
+.admin-dashboard .lbx-layout { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
+.admin-dashboard .lbx-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.admin-dashboard .lbx-heading { flex-wrap: wrap; align-items: center; }
+.admin-dashboard .lbx-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.admin-dashboard .lbx-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 10px;
+  color: var(--ad-muted);
+  background: var(--ad-panel);
+  border: 1px solid var(--ad-border);
+  border-radius: 9px;
+}
+.admin-dashboard .lbx-search input { width: 140px; color: var(--ad-text); background: transparent; border: 0; outline: none; font-size: 13px; }
+
+/* ---------- table ---------- */
+.admin-dashboard .lbx-table td { white-space: nowrap; }
+.admin-dashboard .lbx-table th { line-height: 1.25; white-space: normal; }
+.admin-dashboard .lbx-muted { color: var(--ad-muted); }
+.admin-dashboard .lbx-me td { background: var(--ad-hover); }
+.admin-dashboard .lbx-person { display: flex; align-items: center; gap: 10px; }
+.admin-dashboard .lbx-person strong { font-size: 13px; }
+.admin-dashboard .lbx-av { display: inline-flex; flex: none; align-items: center; justify-content: center; color: #1b3c5a; border-radius: 50%; font-weight: 700; }
+.admin-dashboard .lbx-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  color: var(--ad-text);
+  background: var(--ad-soft);
+  border-radius: 50%;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.admin-dashboard .lbx-rank.r1 { color: #fff; background: #e0a21b; }
+.admin-dashboard .lbx-rank.r2 { color: #fff; background: #7b8aa0; }
+.admin-dashboard .lbx-rank.r3 { color: #fff; background: #c9703f; }
+.admin-dashboard .lbx-pts { display: inline-block; min-width: 52px; padding: 4px 8px; color: var(--ad-text); background: var(--ad-soft); border: 1px solid var(--ad-border); border-radius: 7px; font-weight: 700; text-align: center; }
+.admin-dashboard .lbx-badges { display: inline-flex; align-items: center; gap: 6px; }
+.admin-dashboard .lbx-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; }
+.admin-dashboard .lbx-badge.star, .admin-dashboard .lbx-badge.trophy { color: #d9961b; background: #fff3d6; }
+.admin-dashboard .lbx-badge.shield { color: #3b82c4; background: #e3f0fb; }
+.admin-dashboard .lbx-badge.flame, .admin-dashboard .lbx-badge.target { color: #d9434b; background: #ffe9ea; }
+.admin-dashboard .lbx-more { color: var(--ad-muted); font-size: 11px; font-weight: 600; }
+.admin-dashboard .lbx-you { display: inline-block; margin-left: 10px; padding: 3px 10px; color: #fff; background: #0b8a6c; border-radius: 6px; font-size: 11px; font-weight: 700; }
+
+.admin-dashboard .lbx-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; color: var(--ad-muted); font-size: 12px; }
+.admin-dashboard .lbx-pager > div { display: flex; gap: 8px; }
+.admin-dashboard .lbx-pager button { padding: 6px 12px; color: var(--ad-text); background: var(--ad-panel); border: 1px solid var(--ad-border); border-radius: 8px; font-size: 12px; font-weight: 600; }
+.admin-dashboard .lbx-pager button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- achievements ---------- */
+.admin-dashboard .lbx-ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.admin-dashboard .lbx-ach {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px;
+  text-align: center;
+  background: var(--ad-soft);
+  border: 1px solid var(--ad-border);
+  border-radius: 12px;
+}
+.admin-dashboard .lbx-ach.earned { background: #fffaf0; border-color: #f2dba0; }
+:root[data-theme="dark"] .admin-dashboard .lbx-ach.earned { background: #2a2414; border-color: #6b5518; }
+.admin-dashboard .lbx-ach.locked { opacity: 0.85; }
+.admin-dashboard .lbx-ach strong { font-size: 13px; }
+.admin-dashboard .lbx-ach small { color: var(--ad-muted); font-size: 11.5px; line-height: 1.35; }
+.admin-dashboard .lbx-ach .lbx-progress { width: 100%; }
+.admin-dashboard .lbx-ach-ic { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; margin-bottom: 4px; border-radius: 14px; color: #8a97a6; background: var(--ad-border); }
+.admin-dashboard .lbx-ach.earned .lbx-ach-ic.star, .admin-dashboard .lbx-ach.earned .lbx-ach-ic.trophy { color: #d9961b; background: #ffecc2; }
+.admin-dashboard .lbx-ach.earned .lbx-ach-ic.shield { color: #3b82c4; background: #dcecfb; }
+.admin-dashboard .lbx-ach.earned .lbx-ach-ic.flame, .admin-dashboard .lbx-ach.earned .lbx-ach-ic.target { color: #d9434b; background: #ffe3e5; }
+.admin-dashboard .lbx-pill { margin-top: auto; padding: 3px 10px; color: var(--ad-muted); background: var(--ad-border); border-radius: 20px; font-size: 11px; font-weight: 600; }
+.admin-dashboard .lbx-pill.ok { color: #0b7a5f; background: #d9f5e8; }
+
+/* ---------- side feeds ---------- */
+.admin-dashboard .lbx-feed { margin: 0; padding: 0; list-style: none; }
+.admin-dashboard .lbx-feed li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--ad-border); }
+.admin-dashboard .lbx-feed li:last-child { border-bottom: 0; }
+.admin-dashboard .lbx-feed-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.admin-dashboard .lbx-feed-text strong { font-size: 13px; }
+.admin-dashboard .lbx-feed-text small { color: var(--ad-muted); font-size: 12px; }
+.admin-dashboard .lbx-plus { flex: none; color: #0b8a6c; font-size: 13px; white-space: nowrap; }
+
+/* ---------- responsive ---------- */
+/* Laptop screens at 100% zoom (about 1200-1500px wide): keep the 4 cards in ONE row by making them a bit tighter. */
+@media (max-width: 1500px) {
+  .admin-dashboard .lbx-top { gap: 10px; }
+  .admin-dashboard .lbx-card { gap: 10px; padding: 12px; }
+  .admin-dashboard .lbx-medal, .admin-dashboard .lbx-ic { flex-basis: 44px; width: 44px; height: 44px; border-radius: 12px; }
+  .admin-dashboard .lbx-medal { font-size: 20px; }
+  .admin-dashboard .lbx-ic.sm { flex-basis: 38px; width: 38px; height: 38px; }
+  .admin-dashboard .lbx-big { font-size: 24px; }
+  .admin-dashboard .lbx-card-body > small { font-size: 12px; }
+  .admin-dashboard .lbx-streak-row { gap: 4px; }
+  .admin-dashboard .lbx-streak-row b { font-size: 17px; }
+  .admin-dashboard .lbx-streak-row small { font-size: 9.5px; }
+  .admin-dashboard .lbx-progress-text { font-size: 10px; }
+  .admin-dashboard .lbx-motivate p { font-size: 12.5px; }
+  .admin-dashboard .lbx-motivate strong { font-size: 15px; }
+  .admin-dashboard .lbx-plant { flex-basis: 44px; width: 44px; height: 44px; }
+  .admin-dashboard .lbx-table th, .admin-dashboard .lbx-table td { padding-right: 8px; padding-left: 8px; }
+  .admin-dashboard .lbx-you { margin-left: 6px; }
+}
+@media (max-width: 1100px) {
+  .admin-dashboard .lbx-top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1000px) {
+  .admin-dashboard .lbx-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .admin-dashboard .lbx-top { grid-template-columns: 1fr; }
+  .admin-dashboard .lbx-search input { width: 110px; }
+}

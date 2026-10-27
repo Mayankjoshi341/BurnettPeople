@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Icon } from "./DashboardIcons";
 import { userDisplayName, userInitials, roleLabel } from "./auth/userDisplay";
+import Notifications from "./Notifications";
+import NotificationBell from "./NotificationBell";
+import { CATEGORY_SECTION, NotificationsProvider, useNotificationsContext } from "./NotificationsContext";
 import "./AdminDashboard.css";
 import "./DashboardScale.css";
 import burnettLogo from "./assets/burnettpeople-logo.png";
@@ -12,8 +15,16 @@ import loginSoftMint from "./assets/login-soft-mint.png";
   Background images are the same everywhere:
     sidebar   -> login-dark-teal.png
     workspace -> login-soft-mint.png
+
+  Notifications are handled HERE for every role:
+    - sidebar badge on the item whose id is "notifications"
+    - header bell + dropdown
+    - the Notifications page (shown whenever section === "notifications")
+  The old `unread` prop is no longer needed (it is ignored).
 */
-export default function DashboardShell({
+const NOTIFICATIONS_META = ["Notifications", "Stay updated with important updates, approvals, reminders and announcements."];
+
+function ShellInner({
   rootClass = "",
   user,
   onLogout,
@@ -23,14 +34,23 @@ export default function DashboardShell({
   title,
   subtitle,
   searchPlaceholder = "Search...",
-  unread = 0,
   homePath = "/",
   footerLabel = "Workspace",
   children,
 }) {
-  const [bellOpen, setBellOpen] = useState(false);
   const searchRef = useRef(null);
   const name = userDisplayName(user);
+  const { unread, markRead } = useNotificationsContext();
+
+  const hasSection = (id) => Boolean(id) && nav.some((item) => item.id === id);
+  const showNotifications = () => hasSection("notifications") && setSection("notifications");
+
+  // Click on a notification: mark as read, then open its page when this dashboard has that section.
+  function openNotification(n) {
+    if (!n.read) markRead(n.id);
+    const target = hasSection(n.target) ? n.target : CATEGORY_SECTION[n.category];
+    if (hasSection(target)) setSection(target);
+  }
 
   // Ctrl + K focuses the search box
   useEffect(() => {
@@ -43,6 +63,9 @@ export default function DashboardShell({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  const onNotificationsPage = section === "notifications";
+  const [pageTitle, pageSubtitle] = onNotificationsPage ? NOTIFICATIONS_META : [title, subtitle];
 
   return (
     <div className={`admin-dashboard ${rootClass}`}>
@@ -70,7 +93,7 @@ export default function DashboardShell({
             >
               <span className="admin-nav-icon"><Icon name={item.icon} size={22} /></span>
               {item.label}
-              {item.badge && unread > 0 && <span className="admin-nav-badge">{Math.min(unread, 99)}</span>}
+              {item.id === "notifications" && unread > 0 && <span className="admin-nav-badge">{Math.min(unread, 99)}</span>}
             </button>
           ))}
         </nav>
@@ -97,8 +120,8 @@ export default function DashboardShell({
       <div className="admin-main">
         <header className="admin-header">
           <div className="admin-header-heading">
-            <h1>{title}</h1>
-            <p>{subtitle}</p>
+            <h1>{pageTitle}</h1>
+            <p>{pageSubtitle}</p>
           </div>
 
           <div className="admin-header-actions">
@@ -108,23 +131,7 @@ export default function DashboardShell({
               <kbd>Ctrl + K</kbd>
             </label>
 
-            <div className="admin-notification-wrap">
-              <button
-                type="button"
-                className="admin-notification-button"
-                onClick={() => setBellOpen((o) => !o)}
-                aria-label="Notifications"
-                aria-expanded={bellOpen}
-              >
-                <Icon name="bell" size={20} />
-                {unread > 0 && <span className="admin-notification-count">{Math.min(unread, 99)}</span>}
-              </button>
-              {bellOpen && (
-                <div className="admin-notification-popover" role="status">
-                  {unread > 0 ? `You have ${unread} items waiting for your action.` : "You're all caught up."}
-                </div>
-              )}
-            </div>
+            <NotificationBell onViewAll={showNotifications} onOpen={openNotification} />
 
             <div className="admin-header-profile">
               <span className="admin-topbar-avatar">{userInitials(user)}</span>
@@ -137,7 +144,7 @@ export default function DashboardShell({
         </header>
 
         <main className="admin-workspace" style={{ backgroundImage: `url(${loginSoftMint})` }}>
-          {children}
+          {onNotificationsPage ? <Notifications onOpen={openNotification} /> : children}
           <footer className="admin-footer">
             <span>© 2026 BurnettPeople</span>
             <span>{footerLabel}</span>
@@ -145,5 +152,13 @@ export default function DashboardShell({
         </main>
       </div>
     </div>
+  );
+}
+
+export default function DashboardShell(props) {
+  return (
+    <NotificationsProvider>
+      <ShellInner {...props} />
+    </NotificationsProvider>
   );
 }

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import StatusUpdates from "./StatusUpdates";
+import { STATUS_UPDATES_META, STATUS_UPDATES_NAV } from "./statusUpdatesMeta";
 import apiClient from "./api/client";
-import { userDisplayName, userInitials, roleLabel } from "./auth/userDisplay";
+import { userDisplayName, roleLabel } from "./auth/userDisplay";
 import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
 import { StatCard, MonthCalendar } from "./DashboardParts";
 import MyPeople from "./MyPeople";
-import Leaderboard, { MyRecognitionSummary } from "./Leaderboard";
+import Leaderboard from "./Leaderboard";
+import EmployeeMyProfile from "./EmployeeMyProfile";
 import RemoteWork from "./RemoteWork";
 import { useLeaveData, leaveMarks, upcomingLeave, dayLabel } from "./features/leave/leaveApi";
 import { LeaveApplyForm, LeaveBalanceCards, LeaveHistoryTable, LeaveStatusBadge } from "./features/leave/LeaveComponents";
@@ -41,7 +43,7 @@ const NAV = [
   { id: "requests", label: "My Requests", icon: "file" },
   { id: "profile", label: "My Profile", icon: "user" },
   { id: "notifications", label: "Notifications", icon: "bell", badge: true },
-  { id: "status-updates", label: "Work Status Updates", icon: "file" },
+  STATUS_UPDATES_NAV,
 ];
 
 const PAGE_META = {
@@ -56,6 +58,7 @@ const PAGE_META = {
   requests: ["My Requests", "Report attendance issues and track their review."],
   profile: ["My Profile", "Your personal information and work details."],
   notifications: ["Notifications", "Updates about your requests and attendance."],
+  "status-updates": STATUS_UPDATES_META.EMPLOYEE,
 };
 
 const BREAK_LABELS = { LUNCH: "Lunch Break", SHORT_BREAK: "Short Break", OTHER: "Other Break" };
@@ -923,36 +926,36 @@ function EmployeeDashboard({ user, onLogout }) {
     );
   }
 
-  function renderProfile() {
-    const fields = [
-      ["Full name", name],
-      ["Email", user?.email || "—"],
-      ["Role", roleLabel(user?.role)],
-      ["Employee ID", user?.employee_code || "—"],
-      ["Department", user?.department_name || user?.department?.name || user?.department || "—"],
-      ["Designation", user?.designation_name || user?.designation?.name || user?.designation || "—"],
-    ];
-    return (
-      <>
-        <section className="emp-profile-hero" style={{ backgroundImage: `url(${softMint})` }}>
-          <span className="emp-profile-avatar">{userInitials(user)}</span>
-          <div>
-            <span className={`emp-state ${hasOpenAttendance ? "on" : ""}`}><i /> {hasOpenAttendance ? "On Work" : "Off Duty"}</span>
-            <h2>{name}</h2>
-            <p>{roleLabel(user?.role)}</p>
-          </div>
-        </section>
-        <section className="admin-panel" aria-labelledby="bi-title">
-          <div className="admin-panel-heading"><div><h2 id="bi-title">Basic Information</h2></div></div>
-          <dl className="people-details">
-            {fields.map(([k, v]) => (
-              <div key={k}><dt>{k}</dt><dd>{String(v)}</dd></div>
-            ))}
-          </dl>
-        </section>
-      </>
-    );
-  }
+  // function renderProfile() {
+  //   const fields = [
+  //     ["Full name", name],
+  //     ["Email", user?.email || "—"],
+  //     ["Role", roleLabel(user?.role)],
+  //     ["Employee ID", user?.employee_code || "—"],
+  //     ["Department", user?.department_name || user?.department?.name || user?.department || "—"],
+  //     ["Designation", user?.designation_name || user?.designation?.name || user?.designation || "—"],
+  //   ];
+  //   return (
+  //     <>
+  //       <section className="emp-profile-hero" style={{ backgroundImage: `url(${softMint})` }}>
+  //         <span className="emp-profile-avatar">{userInitials(user)}</span>
+  //         <div>
+  //           <span className={`emp-state ${hasOpenAttendance ? "on" : ""}`}><i /> {hasOpenAttendance ? "On Work" : "Off Duty"}</span>
+  //           <h2>{name}</h2>
+  //           <p>{roleLabel(user?.role)}</p>
+  //         </div>
+  //       </section>
+  //       <section className="admin-panel" aria-labelledby="bi-title">
+  //         <div className="admin-panel-heading"><div><h2 id="bi-title">Basic Information</h2></div></div>
+  //         <dl className="people-details">
+  //           {fields.map(([k, v]) => (
+  //             <div key={k}><dt>{k}</dt><dd>{String(v)}</dd></div>
+  //           ))}
+  //         </dl>
+  //       </section>
+  //     </>
+  //   );
+  // }
 
   function renderNotifications() {
     return (
@@ -985,9 +988,21 @@ function EmployeeDashboard({ user, onLogout }) {
       case "leave": return renderLeave();
       case "assets": return renderAssets();
       case "requests": return renderRequests();
-      case "profile": return <><MyRecognitionSummary />{renderProfile()}</>;
+      case "profile": return (
+        <EmployeeMyProfile
+          user={user}
+          name={name}
+          hasOpenAttendance={hasOpenAttendance}
+          attendanceStatus={attendanceStatus}
+          workSchedule={workSchedule}
+          leaveRemaining={leaveRemaining}
+          leaveLoading={leave.loading}
+          myAssets={myAssets}
+          onNavigate={setSection}
+        />
+      );
       case "notifications": return renderNotifications();
-      case "status-updates": return <StatusUpdates user={user} />;
+      case "status-updates": return <StatusUpdates user={user} onNavigate={setSection} />;
       default: return renderOverview();
     }
   }
