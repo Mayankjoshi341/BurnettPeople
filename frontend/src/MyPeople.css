@@ -1,26 +1,53 @@
 /* My People page (shared by Admin / HR / Employee / Manager dashboards).
    Desktop is scaled by DashboardScale.css, so breakpoints here are 1023px and 820px. */
 
-.admin-dashboard .people-page { display: flex; flex-direction: column; gap: 18px; }
+.admin-dashboard .people-page {
+  --pp-green: #0f7f61;
+  --pp-green-2: #14a37f;
+  --pp-mint: #e8f8f1;
+  --pp-mint-line: #b9e4d3;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+:root[data-theme="dark"] .admin-dashboard .people-page {
+  --pp-mint: #123630;
+  --pp-mint-line: #25594c;
+}
 
+/* ---------- Summary cards ---------- */
 .admin-dashboard .people-page .admin-summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-.admin-dashboard .people-page .admin-stat-card { gap: 10px; padding: 14px; }
-.admin-dashboard .people-page .admin-stat-icon { flex-basis: 46px; width: 46px; height: 46px; }
+.admin-dashboard .people-page .admin-stat-card { gap: 12px; min-height: 104px; padding: 14px 16px; border-radius: 16px; }
+.admin-dashboard .people-page .admin-stat-icon { flex-basis: 48px; width: 48px; height: 48px; border-radius: 14px; }
+.admin-dashboard .people-page .admin-stat-card p { font-size: 13px; font-weight: 600; }
 .admin-dashboard .people-page .admin-stat-card h3 { font-size: 28px; }
 
 .admin-dashboard .people-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.9fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 1.9fr) minmax(300px, 1fr);
   gap: 16px;
   align-items: start;
 }
 .admin-dashboard .people-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.admin-dashboard .people-main { padding: 20px 22px 22px; border-radius: 16px; }
+.admin-dashboard .people-side .admin-panel { border-radius: 16px; }
 
-/* Toolbar */
-.admin-dashboard .people-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.admin-dashboard .people-tabs { display: flex; flex-wrap: wrap; gap: 22px; }
+/* ---------- Toolbar ---------- */
+.admin-dashboard .people-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.admin-dashboard .people-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 26px; }
+.admin-dashboard .people-tabs-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-right: -10px;
+  color: var(--pp-green);
+  background: var(--pp-mint);
+  border-radius: 50%;
+}
 .admin-dashboard .people-tabs button {
-  padding: 8px 2px;
+  padding: 10px 2px;
   color: var(--ad-muted);
   background: none;
   border: 0;
@@ -30,103 +57,237 @@
   transition: color 140ms ease, border-color 140ms ease;
 }
 .admin-dashboard .people-tabs button:hover { color: var(--ad-text); }
-.admin-dashboard .people-tabs button.on { color: #0b6b53; border-bottom-color: #14a37f; }
-.admin-dashboard .people-toolbar-right { display: flex; align-items: center; gap: 10px; }
-.admin-dashboard .people-view-toggle { display: inline-flex; overflow: hidden; border: 1px solid var(--ad-border); border-radius: 9px; }
-.admin-dashboard .people-view-toggle button { display: flex; align-items: center; justify-content: center; width: 38px; height: 36px; color: var(--ad-muted); background: var(--ad-panel); border: 0; }
-.admin-dashboard .people-view-toggle button.on { color: #fff; background: linear-gradient(135deg, #087c65, #149879); }
+.admin-dashboard .people-tabs button.on { color: var(--ad-text); border-bottom-color: var(--pp-green-2); font-weight: 700; }
 
-/* Filters */
-.admin-dashboard .people-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
-.admin-dashboard .people-search { display: flex; flex: 1 1 200px; align-items: center; gap: 8px; height: 40px; padding: 0 12px; color: var(--ad-muted); background: var(--ad-soft); border: 1px solid var(--ad-border); border-radius: 10px; }
+.admin-dashboard .people-toolbar-right { display: flex; align-items: center; gap: 12px; }
+.admin-dashboard .people-view-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--ad-soft);
+  border: 1px solid var(--ad-border);
+  border-radius: 11px;
+}
+.admin-dashboard .people-view-toggle button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 34px;
+  color: var(--ad-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  transition: background 140ms ease, color 140ms ease;
+}
+.admin-dashboard .people-view-toggle button.on { color: #fff; background: linear-gradient(135deg, #087c65, #149879); box-shadow: 0 3px 8px rgba(8, 124, 101, 0.25); }
+
+/* ---------- Filters ---------- */
+.admin-dashboard .people-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+.admin-dashboard .people-search {
+  display: flex;
+  flex: 1.6 1 210px;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 14px;
+  color: var(--ad-muted);
+  background: var(--ad-soft);
+  border: 1px solid var(--ad-border);
+  border-radius: 11px;
+}
 .admin-dashboard .people-search:focus-within { border-color: #8ccfba; box-shadow: 0 0 0 3px rgba(24, 139, 107, 0.1); }
 .admin-dashboard .people-search input { flex: 1; min-width: 0; color: var(--ad-text); background: transparent; border: 0; outline: none; font-size: 13px; }
-.admin-dashboard .people-filters select { height: 40px; padding: 0 10px; color: var(--ad-text); background: var(--ad-panel); border: 1px solid var(--ad-border); border-radius: 10px; font-size: 13px; }
+.admin-dashboard .people-filters select {
+  flex: 1 1 110px;
+  min-width: 0;
+  max-width: 170px;
+  height: 42px;
+  padding: 0 32px 0 14px;
+  color: var(--ad-text);
+  background-color: var(--ad-panel);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7f92' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-position: right 11px center;
+  background-repeat: no-repeat;
+  border: 1px solid var(--ad-border);
+  border-radius: 11px;
+  font-size: 13px;
+  appearance: none;
+}
+.admin-dashboard .people-filters select:hover { border-color: #a9ddc9; }
+.admin-dashboard .people-filters .admin-link-button { white-space: nowrap; }
 
-/* Cards */
-.admin-dashboard .people-grid.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
-.admin-dashboard .people-grid.list { display: flex; flex-direction: column; gap: 8px; }
+/* ---------- Cards ---------- */
+.admin-dashboard .people-grid.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.admin-dashboard .people-grid.list { display: flex; flex-direction: column; gap: 10px; }
 
 .admin-dashboard .people-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
+  gap: 14px;
   min-width: 0;
-  padding: 18px 16px 16px;
+  padding: 16px 16px 14px;
   overflow: hidden;
   color: var(--ad-text);
   background: var(--ad-panel);
   border: 1px solid var(--ad-border);
-  border-radius: 14px;
-  text-align: left;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  border-radius: 16px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background 160ms ease;
 }
-.admin-dashboard .people-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, #087c65, #3bd1a6); opacity: 0; transition: opacity 160ms ease; }
 .admin-dashboard .people-card:hover { border-color: #8fd6bd; box-shadow: 0 12px 26px rgba(24, 65, 58, 0.12); transform: translateY(-2px); }
-.admin-dashboard .people-card:hover::before { opacity: 1; }
-.admin-dashboard .people-card:focus-visible { outline: 3px solid rgba(24, 139, 107, 0.35); outline-offset: 2px; }
-.admin-dashboard .people-card.list { flex-direction: row; align-items: center; padding: 10px 14px; }
-.admin-dashboard .people-card.list::before { inset: 0 auto 0 0; width: 4px; height: auto; }
-.admin-dashboard .people-card.list .people-chip { margin-left: auto; }
+.admin-dashboard .people-card.selected { background: var(--pp-mint); border-color: #35c29b; box-shadow: 0 0 0 1px #35c29b, 0 10px 24px rgba(20, 163, 127, 0.16); }
+.admin-dashboard .people-card:focus-within { border-color: #6cc9ab; }
 
-.admin-dashboard .people-card-copy { display: flex; flex-direction: column; min-width: 0; max-width: 100%; }
-.admin-dashboard .people-card-copy strong { overflow: hidden; font-size: 14.5px; text-overflow: ellipsis; white-space: nowrap; }
-.admin-dashboard .people-card-copy small { overflow: hidden; color: var(--ad-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.admin-dashboard .people-card-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  text-align: left;
+}
+.admin-dashboard .people-card-main:focus-visible { outline: 3px solid rgba(24, 139, 107, 0.35); outline-offset: 4px; }
+.admin-dashboard .people-card-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; max-width: 100%; }
+.admin-dashboard .people-card-copy strong { overflow: hidden; color: var(--ad-text); font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.admin-dashboard .people-card-copy small { overflow: hidden; color: var(--ad-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .admin-dashboard .people-loc { display: inline-flex; align-items: center; gap: 4px; }
 
-.admin-dashboard .people-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.admin-dashboard .people-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+.admin-dashboard .people-card-actions { display: inline-flex; gap: 2px; }
+.admin-dashboard .people-card-actions a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--ad-muted);
+  border-radius: 50%;
+  text-decoration: none;
+  transition: color 140ms ease, background 140ms ease;
+}
+.admin-dashboard .people-card-actions a:hover { color: var(--pp-green); background: var(--pp-mint); }
+
+/* list view */
+.admin-dashboard .people-card.list { flex-direction: row; align-items: center; gap: 16px; padding: 10px 16px; }
+.admin-dashboard .people-card.list .people-card-main { flex: 1; flex-direction: row; align-items: center; min-width: 0; }
+.admin-dashboard .people-card.list .people-card-foot { flex: 0 0 auto; margin-top: 0; gap: 18px; }
+
+.admin-dashboard .people-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 .admin-dashboard .people-chip i { width: 7px; height: 7px; background: currentColor; border-radius: 50%; }
 .admin-dashboard .people-chip.tone-ok { color: #0b7a5f; background: #d9f5e8; }
 .admin-dashboard .people-chip.tone-warn { color: #b9770e; background: #ffeed6; }
 .admin-dashboard .people-chip.tone-bad { color: #d0343e; background: #ffe6e8; }
 .admin-dashboard .people-chip.tone-info { color: #2a6fb8; background: #e0eefb; }
 
-.admin-dashboard .people-avatar { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; color: #0b4d3f; border: 3px solid var(--ad-panel); border-radius: 50%; box-shadow: 0 4px 12px rgba(20, 70, 58, 0.14); font-weight: 700; }
+.admin-dashboard .people-avatar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #0b4d3f;
+  border: 3px solid var(--ad-panel);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(20, 70, 58, 0.16);
+  font-weight: 700;
+}
+.admin-dashboard .people-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
 .admin-dashboard .people-group { margin-bottom: 22px; }
 .admin-dashboard .people-group h3 { margin: 0 0 10px; font-size: 15px; }
 .admin-dashboard .people-group h3 small { margin-left: 6px; padding: 1px 8px; color: #0b6b53; background: #e3f7ed; border-radius: 20px; font-size: 11.5px; font-weight: 600; }
+.admin-dashboard .people-empty { margin: 8px 0; padding: 40px 16px; color: var(--ad-muted); background: var(--ad-soft); border: 1px dashed var(--ad-border); border-radius: 14px; text-align: center; }
 
-/* Pagination */
-.admin-dashboard .people-pagination { display: flex; justify-content: center; gap: 6px; margin-top: 18px; }
-.admin-dashboard .people-pagination button { min-width: 34px; height: 34px; color: var(--ad-text); background: var(--ad-panel); border: 1px solid var(--ad-border); border-radius: 50%; }
-.admin-dashboard .people-pagination button.on { color: #fff; background: #0f7f61; border-color: #0f7f61; }
-.admin-dashboard .people-pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+/* ---------- Pagination ---------- */
+.admin-dashboard .people-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; color: var(--ad-muted); font-size: 12.5px; }
+.admin-dashboard .people-pager-buttons { display: flex; align-items: center; gap: 6px; }
+.admin-dashboard .people-pager-buttons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  color: var(--ad-text);
+  background: var(--ad-panel);
+  border: 1px solid var(--ad-border);
+  border-radius: 50%;
+  font-size: 13px;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.admin-dashboard .people-pager-buttons button:hover:not(:disabled):not(.on) { border-color: #8fd6bd; background: var(--ad-hover); }
+.admin-dashboard .people-pager-buttons button.on { color: #fff; background: #0f7f61; border-color: #0f7f61; font-weight: 700; }
+.admin-dashboard .people-pager-buttons button:disabled { opacity: 0.4; cursor: not-allowed; }
+.admin-dashboard .people-gap { padding: 0 2px; color: var(--ad-muted); }
 
-/* Side panels (leaderboard, dates) */
+/* ---------- Side panels ---------- */
 .admin-dashboard .people-streak, .admin-dashboard .people-dates { margin: 0; padding: 0; list-style: none; }
-.admin-dashboard .people-streak li, .admin-dashboard .people-dates li { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-bottom: 1px solid var(--ad-border); }
-.admin-dashboard .people-streak li:first-child { background: linear-gradient(90deg, rgba(255, 240, 217, 0.85), transparent); border-radius: 10px; }
+.admin-dashboard .people-streak li, .admin-dashboard .people-dates li { display: flex; align-items: center; gap: 10px; padding: 10px 10px; border-bottom: 1px solid var(--ad-border); }
+.admin-dashboard .people-streak li:first-child { background: linear-gradient(90deg, rgba(255, 238, 208, 0.9), rgba(255, 238, 208, 0.15)); border-bottom-color: transparent; border-radius: 12px; }
+:root[data-theme="dark"] .admin-dashboard .people-streak li:first-child { background: linear-gradient(90deg, rgba(120, 80, 20, 0.35), transparent); }
 .admin-dashboard .people-streak li:last-child, .admin-dashboard .people-dates li:last-child { border-bottom: 0; }
-.admin-dashboard .people-streak li > span:nth-of-type(2), .admin-dashboard .people-dates li > span:nth-of-type(2) { display: flex; flex: 1; flex-direction: column; min-width: 0; }
-.admin-dashboard .people-streak strong, .admin-dashboard .people-dates strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.admin-dashboard .people-streak small, .admin-dashboard .people-dates small { color: var(--ad-muted); font-size: 11px; }
-.admin-dashboard .people-days { display: inline-flex; align-items: center; gap: 4px; color: #e0661d; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.admin-dashboard .rank { display: flex; flex: 0 0 24px; align-items: center; justify-content: center; width: 24px; height: 24px; color: var(--ad-muted); border-radius: 7px; font-size: 12px; }
-.admin-dashboard .rank.r1 { color: #b76b16; background: #fff0d9; }
-.admin-dashboard .rank.r2 { color: #5d7283; background: #e8eef2; }
-.admin-dashboard .rank.r3 { color: #b4531f; background: #fde6d8; }
-.admin-dashboard .people-date-icon { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; }
+.admin-dashboard .people-lb-copy, .admin-dashboard .people-date-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.admin-dashboard .people-streak strong, .admin-dashboard .people-dates strong { overflow: hidden; color: var(--ad-text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.admin-dashboard .people-streak small, .admin-dashboard .people-dates small { overflow: hidden; color: var(--ad-muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.admin-dashboard .people-days { display: inline-flex; align-items: center; gap: 4px; color: #e0661d; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+
+.admin-dashboard .rank { display: flex; flex: 0 0 26px; align-items: center; justify-content: center; width: 26px; height: 26px; color: var(--ad-muted); border-radius: 50%; font-size: 12px; font-weight: 700; }
+.admin-dashboard .rank.r1 { color: #fff; background: linear-gradient(135deg, #f6b73c, #e19a14); box-shadow: 0 3px 8px rgba(225, 154, 20, 0.35); }
+.admin-dashboard .rank.r2 { color: #fff; background: linear-gradient(135deg, #a3b2bf, #7c8d9b); }
+.admin-dashboard .rank.r3 { color: #fff; background: linear-gradient(135deg, #e0905a, #c06a33); }
+
+.admin-dashboard .admin-dept-row { grid-template-columns: 140px minmax(0, 1fr) 30px; }
+.admin-dashboard .people-side .admin-dept-bar { height: 9px; }
+
+/* anniversaries */
+.admin-dashboard .people-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 8px; background: var(--ad-soft); border: 1px solid var(--ad-border); border-radius: 11px; }
+.admin-dashboard .people-seg button { padding: 8px 10px; color: var(--ad-muted); background: transparent; border: 0; border-radius: 8px; font-size: 13px; font-weight: 600; }
+.admin-dashboard .people-seg button.on { color: #0b6b53; background: var(--pp-mint); box-shadow: inset 0 0 0 1px var(--pp-mint-line); }
+:root[data-theme="dark"] .admin-dashboard .people-seg button.on { color: #8be3c4; }
+.admin-dashboard .people-dates { max-height: 330px; overflow-y: auto; }
+.admin-dashboard .people-date-icon { display: flex; flex: 0 0 34px; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; }
 .admin-dashboard .people-date-icon.gift { color: #d9434b; background: #ffe9ea; }
 .admin-dashboard .people-date-icon.building { color: #3b82c4; background: #e3f0fb; }
-.admin-dashboard .people-date-when { display: flex; flex-direction: column; align-items: flex-end; }
-.admin-dashboard .people-date-when b { color: #0b8a6c; font-size: 11px; }
+.admin-dashboard .people-date-when { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 3px; }
+.admin-dashboard .people-date-when small { color: var(--ad-muted); font-size: 11px; }
+.admin-dashboard .people-date-when b { padding: 2px 9px; color: #0b8a6c; background: #dcf6ea; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.admin-dashboard .people-date-when b.past { color: var(--ad-muted); background: var(--ad-soft); }
 
-/* Person modal */
-.admin-dashboard .people-modal { position: relative; max-width: 560px; padding-top: 0; overflow: hidden auto; }
-.admin-dashboard .people-modal-cover { height: 86px; margin: 0 -26px; background: linear-gradient(120deg, #087c65, #35c9a0); }
-.admin-dashboard .people-modal-close { position: absolute; top: 14px; right: 14px; color: #fff; background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.4); }
-.admin-dashboard .people-modal-head { display: flex; align-items: flex-end; gap: 16px; margin: -42px 0 18px; }
+/* ---------- Person modal ---------- */
+.admin-dashboard .admin-modal.people-modal { position: relative; max-width: 780px; padding: 28px; overflow: hidden auto; border-radius: 18px; }
+.admin-dashboard .people-modal-close { position: absolute; top: 16px; right: 16px; }
+.admin-dashboard .people-modal-head { display: flex; align-items: flex-start; gap: 20px; margin: 0 40px 22px 0; }
 .admin-dashboard .people-modal-head .people-avatar { border-width: 5px; }
-.admin-dashboard .people-modal-head > div { flex: 1; min-width: 0; padding-top: 46px; }
-.admin-dashboard .people-modal-head h2 { margin: 6px 0 2px; font-size: 21px; }
-.admin-dashboard .people-modal-head p { margin: 0; color: var(--ad-muted); }
-.admin-dashboard .people-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
-.admin-dashboard .people-details div { padding: 10px 12px; background: var(--ad-soft); border: 1px solid var(--ad-border); border-radius: 10px; }
-.admin-dashboard .people-details dt { color: var(--ad-muted); font-size: 11px; }
-.admin-dashboard .people-details dd { margin: 2px 0 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.admin-dashboard .people-modal-id { flex: 1; min-width: 0; }
+.admin-dashboard .people-modal-id h2 { margin: 8px 0 2px; font-size: 25px; letter-spacing: -0.4px; }
+.admin-dashboard .people-modal-role { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; color: var(--ad-muted); font-size: 15px; }
+.admin-dashboard .people-code { padding: 2px 9px; color: #0b6b53; background: var(--pp-mint); border: 1px solid var(--pp-mint-line); border-radius: 6px; font-size: 12px; font-weight: 600; }
+.admin-dashboard .people-modal-dept { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; color: var(--ad-muted); font-size: 13px; }
+.admin-dashboard .people-reports { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.admin-dashboard .people-reports small { display: block; color: var(--ad-muted); font-size: 11px; }
+.admin-dashboard .people-reports strong { font-size: 13px; }
+.admin-dashboard .people-modal-head .people-link { flex: 0 0 auto; }
 .admin-dashboard .people-link { text-decoration: none; }
+
+.admin-dashboard .people-modal-body { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); gap: 16px; padding-top: 20px; border-top: 1px solid var(--ad-border); }
+.admin-dashboard .people-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-content: start; }
+.admin-dashboard .people-info { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px; background: var(--ad-soft); border: 1px solid var(--ad-border); border-radius: 12px; }
+.admin-dashboard .people-info.wide { grid-column: 1 / -1; }
+.admin-dashboard .people-info > span:last-child { min-width: 0; }
+.admin-dashboard .people-info small, .admin-dashboard .people-fact small { display: block; color: var(--ad-muted); font-size: 11.5px; }
+.admin-dashboard .people-info strong { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.admin-dashboard .people-info-icon { display: flex; flex: 0 0 36px; align-items: center; justify-content: center; width: 36px; height: 36px; color: var(--pp-green); background: var(--pp-mint); border-radius: 10px; }
+
+.admin-dashboard .people-modal-side { display: flex; flex-direction: column; gap: 10px; padding: 12px; background: var(--pp-mint); border: 1px solid var(--pp-mint-line); border-radius: 14px; align-self: start; }
+.admin-dashboard .people-fact { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--ad-panel); border-radius: 12px; }
+.admin-dashboard .people-fact strong { display: block; font-size: 18px; line-height: 1.2; }
+.admin-dashboard .people-fact em { display: block; color: var(--ad-muted); font-size: 11.5px; font-style: normal; }
 
 @media (max-width: 1023px) {
   .admin-dashboard .people-layout { grid-template-columns: 1fr; }
@@ -134,5 +295,9 @@
 }
 @media (max-width: 820px) {
   .admin-dashboard .people-page .admin-summary-grid { grid-template-columns: 1fr; }
-  .admin-dashboard .people-details { grid-template-columns: 1fr; }
+  .admin-dashboard .people-tabs { gap: 18px; }
+  .admin-dashboard .people-filters select { flex: 1 1 130px; max-width: none; }
+  .admin-dashboard .people-card.list { flex-wrap: wrap; }
+  .admin-dashboard .people-modal-head { flex-wrap: wrap; margin-right: 36px; }
+  .admin-dashboard .people-modal-body, .admin-dashboard .people-info-grid { grid-template-columns: 1fr; }
 }

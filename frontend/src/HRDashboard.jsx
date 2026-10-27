@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import StatusUpdates from "./StatusUpdates";
+import { STATUS_UPDATES_META, STATUS_UPDATES_NAV } from "./statusUpdatesMeta";
 import { userDisplayName } from "./auth/userDisplay";
 import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
@@ -12,6 +13,7 @@ import HRAssets from "./HRAssets";
 import HRLeave from "./features/leave/HRLeave";
 import HRSettings from "./HRSettings";
 import HRProfile from "./HRProfile";
+import HRReports from "./HRReports";
 import HRAttendance from "./HRAttendance";
 import HRExceptionReview from "./HRExceptionReview";
 import {
@@ -41,7 +43,7 @@ const NAV = [
   { id: "settings", label: "HR Settings", icon: "gear" },
   { id: "notifications", label: "Notifications", icon: "bell", badge: true },
   { id: "profile", label: "My Profile", icon: "user" },
-  { id: "status-updates", label: "Work Status Updates", icon: "file" },
+  STATUS_UPDATES_NAV, // { id: "status-updates", label: "Status Updates", icon: "file" }
 ];
 
 const PAGE_META = {
@@ -59,9 +61,7 @@ const PAGE_META = {
   settings: ["HR Settings", "Manage company policies, time-off rules, assets, schedules and other HR configurations."],
   notifications: ["Notifications", "Everything that needs your attention."],
   profile: ["My Profile", "View and manage your personal, work and HR information."],
-  "status-updates": [
-  "Work Status Updates",
-  "Record completed work, current focus, testing, tech stack and blockers.",],
+  "status-updates": STATUS_UPDATES_META.HR,
 };
 
 /* ------------------------------------------------------------------
@@ -413,6 +413,8 @@ function HRDashboard({ user, onLogout }) {
         return <HRAttendance onOpenExceptions={() => setSection("exceptions")} />;
       case "exceptions":
         return <HRExceptionReview />;
+      case "reports":
+        return <HRReports />;
       case "assets":
         return <HRAssets />;
       case "settings":
@@ -421,6 +423,8 @@ function HRDashboard({ user, onLogout }) {
         return <><MyRecognitionSummary /><HRProfile user={user} /></>;
       case "leave":
         return <HRLeave />;
+      case "status-updates":
+        return <StatusUpdates user={user} onNavigate={setSection} />;
       default:
         return <ComingSoon title={title} />;
     }
