@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import apiClient from "./api/client";
 import { Icon } from "./DashboardIcons";
 import { StatCard, Pager } from "./DashboardParts";
 import {
   AVATAR_TONES,
   SHOW_DEMO_DATA,
   callApi,
+  getArrayResponse,
   getErrorMessage,
   initialsOf,
   statusLabel,
@@ -56,13 +58,6 @@ const DEMO_ROWS = [
 }));
 // give the demo managers ids that match the rows that point to them
 DEMO_ROWS.forEach((r) => { if (r.role === "MANAGER") r.id = `m-${r.name}`; });
-
-const DEMO_CHANGES = [
-  ["check", "ok", "Anita Sharma added as HR", "Today, 10:30 AM"],
-  ["user", "info", "Neha Kapoor promoted to Manager", "Oct 20, 2026, 04:15 PM"],
-  ["user", "info", "Vikram Singh assigned as manager to Rohit Kumar", "Oct 18, 2026, 02:20 PM"],
-  ["close", "bad", "Pooja Lakhwani removed from manager", "Oct 15, 2026, 11:45 AM"],
-];
 
 function Avatar({ name, index = 0, size = 34 }) {
   return (
@@ -210,6 +205,30 @@ function PromoteModal({ all, onClose }) {
 export default function AdminHRManagers({ adminName = "Admin", onAddHr, onOpenAudit }) {
   const navigate = useNavigate();
   const { employees: real, loading, error, reload } = useEmployees();
+
+  // Recent role / manager changes, read from the real audit log API
+  const [changes, setChanges] = useState([]);
+  useEffect(() => {
+    let live = true;
+    apiClient
+      .get("/audit/logs/?page_size=100")
+      .then((res) => {
+        if (!live) return;
+        const rows = getArrayResponse(res)
+          .map((r) => ({
+            id: r.id,
+            at: r.at || r.timestamp || r.created_at || "",
+            who: r.user_name || (typeof r.user === "string" ? r.user : r.user?.name) || r.email || r.user_email || "System",
+            action: r.action || "",
+            text: r.details || r.description || "",
+          }))
+          .filter((r) => /manager|role|promot|assign|\bHR\b/i.test(r.text))
+          .slice(0, 4);
+        setChanges(rows);
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   const demoMode = !loading && real.length === 0 && SHOW_DEMO_DATA;
   const all = demoMode ? DEMO_ROWS : real;
@@ -440,21 +459,23 @@ export default function AdminHRManagers({ adminName = "Admin", onAddHr, onOpenAu
 
         <section className="admin-panel" aria-labelledby="rc-title">
           <div className="admin-panel-heading">
-            <div><h2 id="rc-title">Recent Role Changes</h2>{SHOW_DEMO_DATA && <p>Sample data</p>}</div>
+            <div><h2 id="rc-title">Recent Role Changes</h2><p>From the audit log</p></div>
             {onOpenAudit && <button type="button" className="admin-link-button" onClick={onOpenAudit}>View All <Icon name="arrow" size={14} /></button>}
           </div>
-          {SHOW_DEMO_DATA ? (
+          {changes.length ? (
             <ul className="ahl-changes">
-              {DEMO_CHANGES.map(([icon, tone, text, when]) => (
-                <li key={text}>
-                  <span className={`ahl-change-icon ${tone}`}><Icon name={icon} size={16} /></span>
-                  <span><strong>{text}</strong><small>{when}</small></span>
-                  <small className="ahl-by">by {adminName}</small>
+              {changes.map((c) => (
+                <li key={c.id ?? c.at + c.text}>
+                  <span className={`ahl-change-icon ${/delete/i.test(c.action) ? "bad" : /create/i.test(c.action) ? "ok" : "info"}`}>
+                    <Icon name={/delete/i.test(c.action) ? "close" : /create/i.test(c.action) ? "check" : "user"} size={16} />
+                  </span>
+                  <span><strong>{c.text}</strong><small>{c.at ? new Date(c.at).toLocaleString() : ""}</small></span>
+                  <small className="ahl-by">by {c.who}</small>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="admin-note">Role changes will appear here from the Audit Logs once the audit API provides them.</p>
+            <p className="admin-note">No role or manager changes found in the audit log yet.</p>
           )}
         </section>
 
