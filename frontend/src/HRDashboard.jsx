@@ -5,7 +5,7 @@ import { userDisplayName } from "./auth/userDisplay";
 import DashboardShell from "./DashboardShell";
 import { Icon } from "./DashboardIcons";
 import MyPeople from "./MyPeople";
-import Leaderboard, { MyRecognitionSummary } from "./Leaderboard";
+import Leaderboard from "./Leaderboard";
 import RemoteWork from "./RemoteWork";
 import HREmployeeManagement from "./HREmployeeManagement";
 import HREmployeeOnboarding from "./HREmployeeOnboarding";
@@ -13,9 +13,9 @@ import HRAssets from "./HRAssets";
 import HRLeave from "./features/leave/HRLeave";
 import HRSettings from "./HRSettings";
 import HRProfile from "./HRProfile";
-import HRReports from "./HRReports";
 import HRAttendance from "./HRAttendance";
 import HRExceptionReview from "./HRExceptionReview";
+import HRReports from "./HRReports";
 import {
   AVATAR_TONES,
   SHOW_DEMO_DATA,
@@ -57,7 +57,7 @@ const PAGE_META = {
   exceptions: ["Exception Review", "Review and approve employee attendance and break exceptions."],
   leave: ["Leave Management", "Review and track leave requests."],
   assets: ["Assets & Devices", "View company devices, assign them to employees and track assignments."],
-  reports: ["Reports", "Workforce and attendance reports."],
+  reports: ["Daily Report", "View complete attendance, leave and activity summary for any day."],
   settings: ["HR Settings", "Manage company policies, time-off rules, assets, schedules and other HR configurations."],
   notifications: ["Notifications", "Everything that needs your attention."],
   profile: ["My Profile", "View and manage your personal, work and HR information."],
@@ -413,14 +413,14 @@ function HRDashboard({ user, onLogout }) {
         return <HRAttendance onOpenExceptions={() => setSection("exceptions")} />;
       case "exceptions":
         return <HRExceptionReview />;
-      case "reports":
-        return <HRReports />;
       case "assets":
         return <HRAssets />;
+      case "reports":
+        return <HRReports />;
       case "settings":
         return <HRSettings />;
       case "profile":
-        return <><MyRecognitionSummary /><HRProfile user={user} /></>;
+        return <HRProfile user={user} onNavigate={setSection} />;
       case "leave":
         return <HRLeave />;
       case "status-updates":

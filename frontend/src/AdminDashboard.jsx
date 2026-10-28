@@ -13,6 +13,7 @@ import AdminReports from "./AdminReports";
 import AdminProfile from "./AdminProfile";
 import AdminHRManagers from "./AdminHRManagers"; // HR & Manager Overview
 import AdminLeave from "./AdminLeave"; // Leave Management
+import AdminExceptionReview from "./AdminExceptionReview"; // Exception Reviews
 import MyPeople from "./MyPeople";
 import Leaderboard from "./Leaderboard";
 import RemoteWork from "./RemoteWork";
@@ -502,6 +503,7 @@ export default function AdminDashboard({ user, onLogout }) {
       case "schedules": return <AdminCompanySettings key={section} initialTab="schedules" />;
       // case "schedule-assignments": return <AdminCompanySettings key={section} initialTab="schedule-assignments" hideTabs />;
       case "assets": return <HRAssets />;
+      case "exceptions": return <AdminExceptionReview />;
       case "leave": return <AdminLeave />;
       case "reports": return <AdminReports />;
       case "audit": return <AdminAuditLogs />;
